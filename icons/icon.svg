@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img" aria-label="LouvOrganize">
+  <rect width="100" height="100" rx="22" fill="#7A1F3D"/>
+  <g fill="#fff"><ellipse cx="41.5" cy="66.5" rx="12.5" ry="9" transform="rotate(-20 41.5 66.5)"/>
+  <rect x="51" y="27" width="4" height="39"/><path d="M55 27 L70 36 L71.5 50 L55 43 Z"/></g>
+</svg>

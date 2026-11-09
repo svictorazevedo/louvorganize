@@ -1,0 +1,17 @@
+{
+  "name": "LouvOrganize — escalas do ministério de louvor",
+  "short_name": "LouvOrganize",
+  "description": "Escalas, equipes e repertório do ministério de louvor, com confirmação de cada integrante.",
+  "lang": "pt-BR",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#FBF8F6",
+  "theme_color": "#7A1F3D",
+  "icons": [
+    { "src": "icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any maskable" },
+    { "src": "icons/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }
+  ]
+}

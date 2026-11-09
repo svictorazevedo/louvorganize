@@ -1,0 +1,10 @@
+{
+  "name": "louvorganize",
+  "private": true,
+  "type": "module",
+  "description": "Escalas do ministério de louvor — site estático + Supabase",
+  "scripts": {
+    "test": "node --test tests/unit.test.mjs",
+    "smoke": "node --import ./tests/smoke/register.mjs tests/smoke/smoke.mjs"
+  }
+}
