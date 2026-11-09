@@ -1,0 +1,19 @@
+<!doctype html>
+<html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Prévia LouvOrganize</title>
+<!-- Prévia visual com dados fictícios: node tests/preview/serve.mjs e abra /tests/preview/index.html -->
+<script type="importmap">{ "imports": {
+  "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/+esm": "/tests/smoke/stub-supabase.mjs",
+  "/js/config.js": "/tests/smoke/config-test.mjs" } }</script>
+<link rel="stylesheet" href="/css/app.css"></head>
+<body><div id="app"></div><pre id="err"></pre>
+<script>
+  const log = (t) => { document.getElementById('err').textContent += t + '\n'; };
+  addEventListener('error', (e) => log('ERR ' + e.message + ' ' + (e.filename || '')));
+  addEventListener('unhandledrejection', (e) => log('REJ ' + ((e.reason && e.reason.stack) || e.reason)));
+</script>
+<script type="module">
+  import './fixture.js';
+  if (location.search.includes('anon')) globalThis.__DB.session = null;   // ?anon = deslogado
+  try { await import('/js/main.js'); } catch (e) { document.getElementById('err').textContent += 'IMPORT ' + e.stack; }
+</script></body></html>

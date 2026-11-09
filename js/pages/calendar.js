@@ -67,8 +67,7 @@ export default async function render(el, { query }) {
 
   const list = html`<div class="${view === 'list' ? '' : 'cal-wrap-list-only'}">${inMonth.length ? html`<ul class="list card" style="padding:.25rem 1rem">
     ${inMonth.map((e) => { const t = L.teamById.get(e.team_id); const cov = coverage(rosters.get(e.id) ?? []);
-      return html`<li><div style="min-width:64px;text-align:center"><strong style="font-size:1.3rem">${+toLocalParts(e.starts_at, tz()).date.slice(8)}</strong><br>
-          <span class="muted small">${fmtWeekday(e.starts_at, tz())}</span></div>
+      return html`<li><span class="when"><b>${+toLocalParts(e.starts_at, tz()).date.slice(8)}</b><small>${fmtWeekday(e.starts_at, tz())}</small></span>
         <div class="grow"><button type="button" class="btn link" style="text-align:left" data-act="open" data-id="${e.id}"><strong>${evName(e)}</strong></button>
           ${e.status !== 'published' ? eventChip(e.status) : ''}<br>
           <span class="muted">${fmtTime(e.starts_at, tz())}${t ? ' · ' + t.name : ''}${mgr && e.status === 'published' ? ` · ${cov.conf}/${cov.total} confirmados` : ''}${(e.setlist_items?.[0]?.count ?? 0) ? ` · ♪ ${e.setlist_items[0].count}` : ''}</span></div></li>`; })}</ul>`
@@ -90,7 +89,7 @@ export default async function render(el, { query }) {
         ${L.teams.map((t) => html`<option value="${t.id}" ${f.team === t.id ? 'selected' : ''}>${t.name}</option>`)}</select></div>
       <div><label for="fk">Tipo</label><select id="fk" data-act="filter" data-k="kind"><option value="">Todos</option>
         ${Object.entries(KIND).map(([k, v]) => html`<option value="${k}" ${f.kind === k ? 'selected' : ''}>${v}</option>`)}</select></div></div>
-    <p class="small muted">Cores indicam o tipo (borda), sempre acompanhadas do nome: ${Object.entries(KIND).map(([k, v]) => html`<span class="chip" style="border-left:4px solid ${KIND_COLOR[k]}">${v}</span> `)}</p>
+    <p class="small muted">Tipos: ${Object.entries(KIND).map(([k, v]) => html`<span class="chip"><span class="dot" style="background:${KIND_COLOR[k]}"></span>${v}</span> `)}</p>
     ${view === 'month' ? grid : ''}${view === 'list' || window.innerWidth <= 720 ? list : ''}`);
 
   // ── popover ao passar o mouse / focar ──────────────────────────────────────

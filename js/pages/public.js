@@ -1,6 +1,6 @@
 // Página pública da igreja (RF-1001..1005): sem login; só nome e função, nunca contato nem status.
 import { sb, configured } from '../lib/api.js';
-import { html, raw, toStr, actions, empty, KIND, KIND_COLOR, MOMENT, showDialog } from '../lib/ui.js';
+import { html, raw, toStr, actions, empty, KIND, KIND_COLOR, MOMENT, showDialog, icon } from '../lib/ui.js';
 import { fmtDate, fmtTime, fmtWeekday, toLocalParts, monthLabel, addMonthKey, addDays, todayIn, ymOf } from '../lib/time.js';
 
 export default async function render(el, { params, query }) {
@@ -44,7 +44,7 @@ export default async function render(el, { params, query }) {
       <div class="cal-wrap-list-only">${ev.filter((e) => ymOf(e.starts_at, tz) === ym).map((e) => html`<div class="card"><strong>${evName(e)}</strong><br>
         <span class="muted">${fmtDate(e.starts_at, tz)} · ${fmtTime(e.starts_at, tz)}${e.team ? ' · ' + e.team : ''}</span>${rosterList(e)}${setlist(e)}</div>`)}</div>`;
   } else if (tab === 'teams') {
-    body = data.teams.length ? html`<div class="cards">${data.teams.map((t) => html`<div class="card"><h2><span class="chip"><span class="dot" style="background:${t.color}"></span></span> ${t.name}</h2>
+    body = data.teams.length ? html`<div class="cards">${data.teams.map((t) => html`<div class="card"><h2><span class="dot lg" style="background:${t.color}"></span> ${t.name}</h2>
       <ul class="list">${t.members.map((m) => html`<li><span class="grow">${m.name}</span><span class="muted">${m.role}</span></li>`)}</ul></div>`)}</div>` : empty('Nenhuma equipe', '');
   } else {
     const up = ev.filter((e) => new Date(e.starts_at).getTime() + 4 * 3600e3 > Date.now());
@@ -53,10 +53,12 @@ export default async function render(el, { params, query }) {
       ${rosterList(e)}${setlist(e)}</div>`)}` : empty('Nenhuma escala publicada', 'Volte em breve.');
   }
 
-  el.innerHTML = toStr(html`<main style="max-width:960px;margin:0 auto;padding:16px">
-    <header class="page-head"><div class="grow"><h1>${data.church.name}</h1><p class="muted">Escalas do ministério de louvor</p></div></header>
+  el.innerHTML = toStr(html`<main style="max-width:980px;margin:0 auto;padding:24px 16px 40px">
+    <header class="page-head"><div class="grow row" style="flex-wrap:nowrap;gap:.85rem">
+      <span class="brand-mark" style="width:48px;height:48px;border-radius:14px">${icon('note', 26)}</span>
+      <div style="min-width:0"><h1>${data.church.name}</h1><p class="muted">Escalas do ministério de louvor</p></div></div></header>
     <nav class="tabs" aria-label="Seções">
-      ${[['cal', 'Calendário'], ['escalas', 'Escalas'], ['teams', 'Equipes']].map(([k, l]) => html`<a class="btn" style="${tab === k ? 'background:var(--brand);color:var(--brand-ink)' : ''}" href="${link({ t: k })}" ${tab === k ? raw('aria-current="page"') : ''}>${l}</a>`)}</nav>
+      ${[['cal', 'Calendário'], ['escalas', 'Escalas'], ['teams', 'Equipes']].map(([k, l]) => html`<a href="${link({ t: k })}" ${tab === k ? raw('aria-current="page"') : ''}>${l}</a>`)}</nav>
     ${body}
     <p class="small muted" style="margin-top:2rem">Página pública · mostra apenas nome e função. <a href="#/login">Sou do ministério</a></p></main>`);
 

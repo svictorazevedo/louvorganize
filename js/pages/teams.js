@@ -25,7 +25,7 @@ export default async function render(el, { params }) {
         <th scope="col">Quem</th><th scope="col">Funções cobertas</th><th scope="col"><span class="sr-only">Ações</span></th></tr></thead><tbody>
         ${rows.map((t) => {
           const ids = distinct(t); const roles = [...new Set(t.team_members.map((x) => x.role_id))];
-          return html`<tr><td><span class="chip"><span class="dot" style="background:${t.color}"></span></span> <a href="#/equipes/${t.id}"><strong>${t.name}</strong></a>
+          return html`<tr><td><span class="dot lg" style="background:${t.color}"></span> <a href="#/equipes/${t.id}"><strong>${t.name}</strong></a>
               ${t.leader_id ? html`<br><span class="muted small">Líder: ${nameOf(t.leader_id)}</span>` : ''}</td>
             <td>${ids.length}</td>
             <td><div class="chips">${ids.map((m) => html`<span class="chip" title="${nameOf(m)}"><span class="av" style="width:22px;height:22px;font-size:.65rem" aria-hidden="true">${initials(nameOf(m))}</span> ${nameOf(m).split(' ')[0]}</span>`)}</div></td>
@@ -80,7 +80,7 @@ async function view(el, L, id) {
   });
   const canEdit = isAdmin() || t.leader_id === S.me?.id;
   el.innerHTML = toStr(html`
-    <div class="page-head"><div class="grow"><h1><span class="chip"><span class="dot" style="background:${t.color}"></span></span> ${t.name}</h1>
+    <div class="page-head"><div class="grow"><h1><span class="dot lg" style="background:${t.color}"></span> ${t.name}</h1>
       <p class="muted">${distinct(t).length} integrante(s)${t.leader_id ? ' · Líder: ' + (L.memberById.get(t.leader_id)?.full_name ?? '') : ''}</p></div>
       <div class="actions">${canEdit ? html`<a class="btn primary" href="#/equipes/${t.id}/editar">Editar</a>` : ''}<a class="btn" href="#/equipes">Voltar</a></div></div>
     <div class="cards">

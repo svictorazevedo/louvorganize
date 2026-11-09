@@ -176,9 +176,9 @@ await check('calendário: abrir escala mostra elenco', async () => {
 // ── o roteador completo (main.js) ────────────────────────────────────────────
 await check('main.js: monta a moldura e o início para usuário logado', async () => {
   await import('../../js/main.js'); await settle(400);
-  if (!document.querySelector('header.top') || !document.querySelector('#view')) throw new Error('sem moldura: ' + document.getElementById('app').innerHTML.slice(0, 200));
-  if (!/Olá, Ana/.test(document.querySelector('#view').textContent)) throw new Error('início não renderizou: ' + document.querySelector('#view').textContent.slice(0, 200));
-  if (document.querySelectorAll('.nav a').length < 8) throw new Error('menu incompleto');
+  if (!document.querySelector('aside.side') || !document.querySelector('#view')) throw new Error('sem moldura: ' + document.getElementById('app').innerHTML.slice(0, 200));
+  if (!/(Bom dia|Boa tarde|Boa noite), Ana/.test(document.querySelector('#view').textContent)) throw new Error('início não renderizou: ' + document.querySelector('#view').textContent.slice(0, 200));
+  if (document.querySelectorAll('.side-nav a').length < 8 || document.querySelectorAll('.tabbar a').length !== 4) throw new Error('menu incompleto');
 });
 
 for (const r of results) console.log(r[0] === 'ok' ? '  ok   ' : '  FALHOU', r[1], r[2] ? '\n         ' + r[2] : '');

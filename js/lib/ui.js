@@ -1,4 +1,6 @@
 // Utilitários de interface: template HTML com escape automático, diálogos e avisos.
+import { iconSvg } from './icons.js';
+
 const RAW = Symbol('raw');
 
 export const esc = (s) =>
@@ -19,6 +21,8 @@ export function html(strings, ...vals) {
   return raw(out);
 }
 export const toStr = (node) => part(node);
+/** Ícone SVG pronto para html``. */
+export const icon = (name, size) => raw(iconSvg(name, size));
 
 /** Só aceita http(s) em links vindos do usuário (evita javascript:). */
 export const safeUrl = (u) => (/^https?:\/\//i.test(String(u ?? '')) ? String(u) : '');
@@ -50,17 +54,30 @@ export function toast(msg, kind = '') {
   let box = document.getElementById('toasts');
   if (!box) { box = document.createElement('div'); box.id = 'toasts'; box.setAttribute('role', 'status'); box.setAttribute('aria-live', 'polite'); document.body.append(box); }
   const el = document.createElement('div');
-  el.className = 'toast ' + kind; el.textContent = msg;
+  el.className = 'toast ' + kind;
+  el.innerHTML = iconSvg(kind === 'bad' ? 'alert' : 'check', 18);
+  el.append(document.createTextNode(msg));
+  el.addEventListener('click', () => el.remove());          // toque para dispensar
   box.append(el);
-  setTimeout(() => el.remove(), kind === 'bad' ? 7000 : 3500);
+  setTimeout(() => { el.classList.add('out'); setTimeout(() => el.remove(), 250); }, kind === 'bad' ? 7000 : 3500);
 }
 
-// ── diálogos ────────────────────────────────────────────────────────────────
-function makeDialog(inner) {
+// ── diálogos (no celular viram "folha" que sobe de baixo, via CSS) ──────────
+function makeDialog(inner, { lightDismiss = true } = {}) {
   const dlg = document.createElement('dialog');
   dlg.innerHTML = toStr(inner);
   document.body.append(dlg);
   dlg.addEventListener('close', () => dlg.remove());
+  // tocar fora (no fundo escurecido) fecha — só em diálogos sem formulário a preencher
+  if (lightDismiss) {
+    dlg.addEventListener('click', (e) => {
+      if (e.target !== dlg) return;
+      const r = dlg.getBoundingClientRect();
+      if (e.clientX < r.left || e.clientX > r.right || e.clientY < r.top || e.clientY > r.bottom) dlg.close('cancel');
+    });
+  }
+  document.documentElement.classList.add('dlg-open');
+  dlg.addEventListener('close', () => { if (!document.querySelector('dialog[open]')) document.documentElement.classList.remove('dlg-open'); });
   dlg.showModal();
   return dlg;
 }
@@ -98,8 +115,8 @@ export function formDialog({ title, body, submitText = 'Salvar', onSubmit, onOpe
       <div class="dlg-foot">
         <button type="button" class="btn" data-close>Cancelar</button>
         <button class="btn ${danger ? 'danger' : 'primary'}" type="submit">${submitText}</button>
-      </div></form>`);
-    if (wide) dlg.style.maxWidth = 'min(760px, calc(100vw - 24px))';
+      </div></form>`, { lightDismiss: false });
+    if (wide) dlg.classList.add('wide');
     let result = null;
     const form = dlg.querySelector('form');
     const errBox = dlg.querySelector('.dlg-error');
@@ -107,14 +124,15 @@ export function formDialog({ title, body, submitText = 'Salvar', onSubmit, onOpe
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       const btn = form.querySelector('button[type=submit]');
-      errBox.innerHTML = ''; btn.disabled = true;
+      errBox.innerHTML = ''; btn.disabled = true; btn.classList.add('loading');
       try {
-        if (!form.reportValidity()) { btn.disabled = false; return; }
+        if (!form.reportValidity()) { btn.disabled = false; btn.classList.remove('loading'); return; }
         result = (await onSubmit(new FormData(form), dlg)) ?? true;
         dlg.close();
       } catch (err) {
         errBox.innerHTML = `<div class="alert bad">${esc(err.message || String(err))}</div>`;
-        btn.disabled = false;
+        errBox.scrollIntoView?.({ block: 'nearest' });
+        btn.disabled = false; btn.classList.remove('loading');
       }
     });
     dlg.addEventListener('close', () => resolve(result));
@@ -126,9 +144,13 @@ export function formDialog({ title, body, submitText = 'Salvar', onSubmit, onOpe
 export function showDialog(inner) { return makeDialog(inner); }
 
 // ── peças de tela reutilizáveis ─────────────────────────────────────────────
-export const spinner = () => html`<div class="spinner" role="status">Carregando…</div>`;
-export const empty = (title, text, action = '') =>
-  html`<div class="empty"><strong>${title}</strong>${text}${action ? html`<div style="margin-top:.75rem">${action}</div>` : ''}</div>`;
+/** Esqueleto de carregamento: mostra a forma da página em vez de um “Carregando…” solto. */
+export const spinner = () => html`<div class="skeleton" role="status" aria-label="Carregando">
+  <div class="sk sk-title"></div><div class="sk sk-line" style="width:40%"></div>
+  <div class="sk-cards"><div class="sk sk-card"></div><div class="sk sk-card"></div><div class="sk sk-card"></div></div>
+  <div class="sk sk-line"></div><div class="sk sk-line" style="width:85%"></div><div class="sk sk-line" style="width:70%"></div></div>`;
+export const empty = (title, text, action = '', ic = 'inbox') =>
+  html`<div class="empty"><span class="empty-ic">${icon(ic, 28)}</span><strong>${title}</strong>${text ? html`<span>${text}</span>` : ''}${action ? html`<div class="empty-act">${action}</div>` : ''}</div>`;
 export const errorBox = (err) =>
   html`<div class="alert bad" role="alert"><strong>Não foi possível carregar.</strong> ${err.message || err}
     <div style="margin-top:.5rem"><button class="btn sm" data-reload>Tentar de novo</button></div></div>`;

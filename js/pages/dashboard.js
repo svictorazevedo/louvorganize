@@ -1,6 +1,7 @@
 // Início: o que exige ação agora (§12 — tela mais importante para o líder).
-import { sb, q, S, isManager, lookups } from '../lib/api.js';
-import { html, toStr, actions, empty, statusChip, coverage, coverageBar, eventChip, toast } from '../lib/ui.js';
+import { sb, q, S, tz, isManager, lookups } from '../lib/api.js';
+import { html, toStr, actions, empty, statusChip, coverage, coverageBar, eventChip, toast, icon } from '../lib/ui.js';
+import { toLocalParts, fmtWeekday, fmtTime } from '../lib/time.js';
 import { evName, evWhen, loadRoster, confirmAssignment, declineFlow, substituteFlow } from '../lib/shared.js';
 
 export default async function render(el) {
@@ -30,10 +31,22 @@ export default async function render(el) {
 
   const firstRun = mgr && L.members.filter((m) => !m.deleted_at).length <= 1 && L.teams.length === 0 && upcoming.length === 0;
 
+  const toAnswer = mine.filter((a) => a.status !== 'confirmed').length;
+  const hour = +new Intl.DateTimeFormat('en-US', { timeZone: tz(), hour: 'numeric', hourCycle: 'h23' }).format(new Date());
+  const hello = hour < 12 ? 'Bom dia' : hour < 18 ? 'Boa tarde' : 'Boa noite';
+  const today = new Intl.DateTimeFormat('pt-BR', { timeZone: tz(), weekday: 'long', day: 'numeric', month: 'long' }).format(new Date());
+
   el.innerHTML = toStr(html`
-    <div class="page-head"><div class="grow"><h1>Olá${S.me ? ', ' + S.me.full_name.split(' ')[0] : ''}!</h1>
-      <p class="muted">${S.church.name}</p></div>
-      ${mgr ? html`<div class="actions"><a class="btn primary" href="#/escalas/nova">+ Nova escala</a></div>` : ''}</div>
+    <div class="page-head hero"><div class="grow"><div class="date">${today}</div>
+      <h1>${hello}${S.me ? ', ' + S.me.full_name.split(' ')[0] : ''}!</h1></div>
+      ${mgr ? html`<div class="actions"><a class="btn primary" href="#/escalas/nova">${icon('plus', 18)} Nova escala</a></div>` : ''}</div>
+
+    <div class="stats">
+      ${S.me ? html`<a class="stat ${toAnswer ? 'hot' : ''}" href="#/minhas"><span class="n">${toAnswer}</span><span class="l">${icon('check', 16)} Para eu responder</span></a>` : ''}
+      ${mgr ? html`<button type="button" class="stat ${problems.length ? 'hot' : ''}" data-act="scroll" data-to="h-pend"><span class="n">${problems.length}</span><span class="l">${icon('alert', 16)} Pendências do líder</span></button>` : ''}
+      <a class="stat" href="#/escalas"><span class="n">${upcoming.filter((e) => e.status === 'published').length}</span><span class="l">${icon('calendar', 16)} Próximas escalas</span></a>
+      ${mgr && noSetlist.length ? html`<button type="button" class="stat" data-act="scroll" data-to="h-noset"><span class="n">${noSetlist.length}</span><span class="l">${icon('music', 16)} Sem repertório</span></button>` : ''}
+    </div>
 
     ${firstRun ? html`<div class="card"><h2>Vamos começar?</h2>
       <p>Siga esta ordem — cada passo depende do anterior:</p>
@@ -44,8 +57,9 @@ export default async function render(el) {
         <li><a href="#/escalas/nova">Escala</a>: crie a primeira e publique.</li>
       </ol></div>` : ''}
 
-    ${mine.length ? html`<section class="card" aria-labelledby="h-mine"><h2 id="h-mine">Preciso responder / minhas próximas escalas</h2>
+    ${mine.length ? html`<section class="card" aria-labelledby="h-mine"><h2 id="h-mine">Minhas próximas escalas</h2>
       <ul class="list" id="mine">${mine.slice(0, 5).map((a) => html`<li>
+        <span class="when"><b>${+toLocalParts(a.events.starts_at, tz()).date.slice(8)}</b><small>${fmtWeekday(a.events.starts_at, tz())}</small></span>
         <div class="grow"><strong>${evName(a.events)}</strong> ${statusChip(a.status)}<br>
           <span class="muted">${evWhen(a.events)} · ${roleName(a.role_id)}</span></div>
         <div class="actions">
@@ -71,22 +85,26 @@ export default async function render(el) {
       ${upcoming.length ? html`<div class="cards">${upcoming.slice(0, 4).map((e) => {
         const cov = coverage(rosters.get(e.id) ?? []);
         const t = L.teamById.get(e.team_id);
-        return html`<div class="card"><div class="row"><strong class="grow"><a href="#/escalas/${e.id}">${evName(e)}</a></strong>${eventChip(e.status)}</div>
-          <p class="muted">${evWhen(e)}${t ? html` · ${t.name}` : ''}</p>
-          ${mgr ? coverageBar(cov) : ''}
-          <p class="small muted">♪ ${e.setlist_items?.[0]?.count ?? 0} música(s)</p></div>`;
+        const d = toLocalParts(e.starts_at, tz()).date;
+        return html`<div class="card"><div class="row" style="flex-wrap:nowrap;align-items:flex-start">
+            <span class="when"><b>${+d.slice(8)}</b><small>${fmtWeekday(e.starts_at, tz())}</small></span>
+            <div class="grow"><strong><a href="#/escalas/${e.id}">${evName(e)}</a></strong>
+              <div class="muted small">${fmtTime(e.starts_at, tz())}${t ? html` · ${t.name}` : ''} · ♪ ${e.setlist_items?.[0]?.count ?? 0}</div></div>
+            ${e.status !== 'published' ? eventChip(e.status) : ''}</div>
+          ${mgr && e.status === 'published' ? html`<div style="margin-top:.75rem">${coverageBar(cov)}</div>` : ''}</div>`;
       })}</div>`
         : empty('Nenhuma escala à frente', mgr ? 'Crie a próxima escala para começar.' : 'Quando o líder publicar, ela aparece aqui.',
             mgr ? html`<a class="btn primary" href="#/escalas/nova">+ Nova escala</a>` : '')}
     </section>
 
-    ${mgr && noSetlist.length ? html`<section class="card"><h2>Escalas sem repertório</h2><ul class="list">
+    ${mgr && noSetlist.length ? html`<section class="card" style="margin-top:1rem"><h2 id="h-noset">Escalas sem repertório</h2><ul class="list">
       ${noSetlist.map((e) => html`<li><div class="grow"><a href="#/escalas/${e.id}">${evName(e)}</a> <span class="muted">· ${evWhen(e)}</span></div>
         <a class="btn sm" href="#/escalas/${e.id}">Montar setlist</a></li>`)}</ul></section>` : ''}
     `);
 
   const byId = new Map([...mine, ...problems].map((a) => [a.id, a]));
   actions(el, {
+    scroll: (b) => document.getElementById(b.dataset.to)?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
     confirm: async (b) => { b.disabled = true; try { await confirmAssignment(b.dataset.id); render(el); } catch (e) { toast(e.message, 'bad'); b.disabled = false; } },
     'confirm-for': async (b) => { b.disabled = true; try { await confirmAssignment(b.dataset.id); render(el); } catch (e) { toast(e.message, 'bad'); b.disabled = false; } },
     decline: async (b) => { if (await declineFlow(byId.get(b.dataset.id))) render(el); },

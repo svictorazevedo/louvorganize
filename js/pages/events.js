@@ -28,7 +28,7 @@ export default async function render(el, { query }) {
     return html`<tr>
       <td class="nowrap"><a href="#/escalas/${e.id}"><strong>${fmtDate(e.starts_at, tz())}</strong></a><br>
         <span class="muted small">${fmtWeekday(e.starts_at, tz())} ${fmtTime(e.starts_at, tz())}</span></td>
-      <td><span class="chip" style="border-left:4px solid ${KIND_COLORS[e.kind]}">${KIND[e.kind]}</span></td>
+      <td><span class="chip"><span class="dot" style="background:${KIND_COLORS[e.kind]}"></span>${KIND[e.kind]}</span></td>
       <td>${e.kind === 'evento' ? e.title : e.title ?? ''}</td>
       <td>${t ? html`<a href="#/equipes/${t.id}">${t.name}</a>` : html`<span class="muted">—</span>`}</td>
       <td class="nowrap">${n ? html`<a href="#/escalas/${e.id}?tab=setlist">♪ Setlist (${n})</a>` : html`<span class="muted">♪ —</span>`}</td>

@@ -2,7 +2,7 @@
 import { sb, q, S, tz, lookups, invalidate } from '../lib/api.js';
 import { html, toStr, esc, actions, empty, statusChip, confirmDialog, toast, download } from '../lib/ui.js';
 import { evName, evWhen, confirmAssignment, declineFlow } from '../lib/shared.js';
-import { fmtDate, toE164, todayIn } from '../lib/time.js';
+import { fmtDate, toE164, todayIn, toLocalParts, fmtWeekday } from '../lib/time.js';
 import { buildIcs } from '../lib/ics.js';
 
 export default async function render(el) {
@@ -34,6 +34,7 @@ export default async function render(el) {
 
     <section class="card"><h2>Próximas</h2>
       ${next.length ? html`<ul class="list">${next.map((a) => html`<li>
+        <span class="when"><b>${+toLocalParts(a.events.starts_at, tz()).date.slice(8)}</b><small>${fmtWeekday(a.events.starts_at, tz())}</small></span>
         <div class="grow"><strong>${evName(a.events)}</strong> ${statusChip(a.status)}<br>
           <span class="muted">${evWhen(a.events)} · ${roleName(a.role_id)}${a.events.location ? ' · ' + a.events.location : ''}</span>
           ${a.status === 'declined' ? html`<br><span class="small muted">Você recusou: “${a.decline_reason}”</span>` : ''}</div>

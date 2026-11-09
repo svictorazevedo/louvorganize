@@ -1,6 +1,6 @@
 // Inicialização, roteador por hash (funciona no GitHub Pages) e estrutura da tela.
 import { configured, secretKeyError, sb, S, loadContext, setChurch, isAdmin, isManager } from './lib/api.js';
-import { html, raw, toStr, spinner, errorBox, toast } from './lib/ui.js';
+import { html, raw, toStr, spinner, errorBox, toast, icon, initials, showDialog } from './lib/ui.js';
 
 const app = document.getElementById('app');
 
@@ -31,18 +31,20 @@ const ROUTES = [
   [/^\/configuracoes$/, 'settings', { admin: true }],
 ];
 
+// [caminho, rótulo, quem vê, ícone, rótulo curto p/ barra do celular]
 const NAV = [
-  ['/', 'Início', () => true],
-  ['/calendario', 'Calendário', () => true],
-  ['/minhas', 'Minhas escalas', () => !!S.me],
-  ['/escalas', 'Escalas', () => true],
-  ['/equipes', 'Equipes', () => true],
-  ['/integrantes', 'Integrantes', isManager],
-  ['/funcoes', 'Funções', isAdmin],
-  ['/musicas', 'Músicas', () => true],
-  ['/relatorios', 'Relatórios', isManager],
-  ['/configuracoes', 'Configurações', isAdmin],
+  ['/', 'Início', () => true, 'home', 'Início'],
+  ['/calendario', 'Calendário', () => true, 'calendar', 'Agenda'],
+  ['/minhas', 'Minhas escalas', () => !!S.me, 'check', 'Minhas'],
+  ['/escalas', 'Escalas', () => true, 'list', 'Escalas'],
+  ['/equipes', 'Equipes', () => true, 'users', 'Equipes'],
+  ['/integrantes', 'Integrantes', isManager, 'user', 'Pessoas'],
+  ['/funcoes', 'Funções', isAdmin, 'tag', 'Funções'],
+  ['/musicas', 'Músicas', () => true, 'music', 'Músicas'],
+  ['/relatorios', 'Relatórios', isManager, 'chart', 'Relatórios'],
+  ['/configuracoes', 'Configurações', isAdmin, 'settings', 'Ajustes'],
 ];
+const TAB_MAX = 4;   // no celular: 4 atalhos + “Mais”
 
 let navToken = 0;
 let shellFor = null;
@@ -75,37 +77,84 @@ function setupScreen() {
     </ol></div></div>`);
 }
 
+const ROLE_NAME = { owner: 'Proprietário', admin: 'Administrador', leader: 'Líder', member: 'Integrante' };
+const isOn = (p, path) => (p === '/' ? path === '/' : path === p || path.startsWith(p + '/'));
+
 function renderShell() {
   const items = NAV.filter(([, , show]) => show());
-  const switcher = S.memberships.length > 1
-    ? html`<label class="sr-only" for="church-sw">Igreja</label>
-        <select id="church-sw" style="width:auto;min-height:36px">${S.memberships.map((m) =>
+  const tabs = items.slice(0, TAB_MAX);
+  const name = S.me?.full_name ?? S.user?.email ?? '';
+  const switcher = (id) => (S.memberships.length > 1
+    ? html`<label class="sr-only" for="${id}">Trocar de igreja</label>
+        <select id="${id}" class="church-sw" data-church-sw>${S.memberships.map((m) =>
           html`<option value="${m.church_id}" ${m.church_id === S.church.id ? raw('selected') : ''}>${m.churches.name}</option>`)}</select>`
-    : '';
+    : '');
   app.innerHTML = toStr(html`
-    <header class="top"><div class="top-in">
-      <a class="brand" href="#/">LouvOrganize<small>${S.church.name}</small></a>
-      ${switcher}
-      <a class="btn sm" href="#/i/${S.church.slug}" target="_blank" rel="noopener" title="Página pública da igreja">Página pública ↗</a>
-      <button class="btn sm" id="logout">Sair</button>
-    </div>
-    <nav class="nav" aria-label="Principal">${items.map(([p, label]) => html`<a href="#${p}" data-path="${p}">${label}</a>`)}</nav>
-    </header>
-    <main id="view" tabindex="-1"></main>`);
-  document.getElementById('logout').addEventListener('click', async () => { await sb.auth.signOut(); });
-  document.getElementById('church-sw')?.addEventListener('change', async (e) => {
-    await setChurch(e.target.value); shellFor = null; go('/');
-  });
+    <div class="shell">
+      <aside class="side" aria-label="Menu lateral">
+        <a class="brand" href="#/"><span class="brand-mark">${icon('note', 22)}</span><span>LouvOrganize<small>${S.church.name}</small></span></a>
+        ${switcher('church-sw-side')}
+        <nav class="side-nav" aria-label="Principal">${items.map(([p, label, , ic]) =>
+          html`<a href="#${p}" data-path="${p}">${icon(ic)}<span>${label}</span></a>`)}</nav>
+        <div class="side-foot">
+          <a href="#/i/${S.church.slug}" target="_blank" rel="noopener">${icon('external', 18)}<span>Página pública</span></a>
+          <button type="button" data-logout>${icon('logout', 18)}<span>Sair</span></button>
+          <div class="me"><span class="av" aria-hidden="true">${initials(name)}</span><span><strong>${name}</strong><small>${ROLE_NAME[S.role] ?? ''}</small></span></div>
+        </div>
+      </aside>
+      <header class="mtop">
+        <a class="brand" href="#/"><span class="brand-mark">${icon('note', 20)}</span><span>${S.church.name}</span></a>
+        <span class="av" aria-label="${name}" title="${name}">${initials(name)}</span>
+      </header>
+      <main id="view" tabindex="-1"></main>
+      <nav class="tabbar" aria-label="Atalhos">
+        ${tabs.map(([p, , , ic, short]) => html`<a href="#${p}" data-path="${p}">${icon(ic, 22)}<span>${short}</span></a>`)}
+        <button type="button" data-more aria-haspopup="dialog">${icon('more', 22)}<span>Mais</span></button>
+      </nav>
+    </div>`);
   shellFor = S.church.id;
 }
 
+function openMore() {
+  const rest = NAV.filter(([, , show]) => show()).slice(TAB_MAX);
+  const path = parseHash().path;
+  const dlg = showDialog(html`<div class="dlg-body sheet-menu">
+      <div class="sheet-head"><span class="av">${initials(S.me?.full_name ?? S.user?.email)}</span>
+        <span><strong>${S.me?.full_name ?? S.user?.email}</strong><small>${S.church.name} · ${ROLE_NAME[S.role] ?? ''}</small></span></div>
+      ${S.memberships.length > 1 ? html`<div class="field"><label for="church-sw-sheet">Igreja</label><select id="church-sw-sheet" data-church-sw>${S.memberships.map((m) =>
+        html`<option value="${m.church_id}" ${m.church_id === S.church.id ? raw('selected') : ''}>${m.churches.name}</option>`)}</select></div>` : ''}
+      <nav class="menu-list" aria-label="Mais opções">
+        ${rest.map(([p, label, , ic]) => html`<a href="#${p}" ${isOn(p, path) ? raw('aria-current="page"') : ''}>${icon(ic)}<span>${label}</span>${icon('chevron', 18)}</a>`)}
+        <a href="#/i/${S.church.slug}" target="_blank" rel="noopener">${icon('external')}<span>Página pública</span>${icon('chevron', 18)}</a>
+        <button type="button" data-logout class="danger-text">${icon('logout')}<span>Sair da conta</span></button>
+      </nav></div>`);
+  dlg.classList.add('sheet');
+  dlg.querySelectorAll('a[href^="#/"]').forEach((a) => a.addEventListener('click', () => dlg.close()));
+}
+
 function markNav(path) {
-  document.querySelectorAll('.nav a').forEach((a) => {
-    const p = a.dataset.path;
-    const on = p === '/' ? path === '/' : path === p || path.startsWith(p + '/');
+  let inTabs = false;
+  document.querySelectorAll('.side-nav a, .tabbar a').forEach((a) => {
+    const on = isOn(a.dataset.path, path);
     if (on) a.setAttribute('aria-current', 'page'); else a.removeAttribute('aria-current');
+    if (on && a.closest('.tabbar')) inTabs = true;
+  });
+  document.querySelector('.tabbar [data-more]')?.classList.toggle('on', !inTabs && path !== '/');
+}
+
+// Tabelas viram cartões no celular: cada célula ganha o título da coluna (data-label).
+function labelTables(root) {
+  root.querySelectorAll('table').forEach((t) => {
+    const heads = [...t.querySelectorAll('thead th')].map((th) => th.textContent.trim());
+    t.classList.add('rtable');
+    t.querySelectorAll('tbody tr').forEach((tr) => [...tr.children].forEach((td, i) => {
+      if (!td.hasAttribute('data-label')) td.setAttribute('data-label', heads[i] ?? '');
+    }));
   });
 }
+const tableObserver = new MutationObserver((list) => {
+  for (const m of list) m.addedNodes.forEach((n) => { if (n.nodeType === 1) labelTables(n.tagName === 'TABLE' ? n.parentNode : n); });
+});
 
 async function route() {
   const token = ++navToken;
@@ -134,28 +183,48 @@ async function route() {
   wrapper.className = 'page';
   wrapper.innerHTML = toStr(spinner());
 
-  if (opt.bare || !S.church) {
+  const bare = opt.bare || !S.church;
+  document.body.classList.toggle('is-bare', bare);
+  if (bare) {
     app.replaceChildren(wrapper); shellFor = null;
   } else {
     if (shellFor !== S.church.id || !document.getElementById('view')) renderShell();
     document.getElementById('view').replaceChildren(wrapper);
     markNav(path);
   }
-  document.title = 'LouvOrganize';
+  tableObserver.disconnect();
+  tableObserver.observe(wrapper, { childList: true, subtree: true });
   window.scrollTo(0, 0);
 
   try {
     const page = await import(`./pages/${mod}.js`);
     if (token !== navToken) return;
     await page.default(wrapper, { params: m.slice(1), query, opt, go });
+    labelTables(wrapper);
+    // título da aba = título da tela; foco no título para leitores de tela (sem rolar)
+    const h1 = wrapper.querySelector('h1');
+    if (h1 && !opt.mode) {
+      document.title = `${h1.textContent.trim()} · LouvOrganize`;
+      if (navToken > 1) { h1.setAttribute('tabindex', '-1'); h1.focus({ preventScroll: true }); }
+    } else if (!h1) document.title = 'LouvOrganize';
   } catch (err) {
     console.error(err);
     if (token === navToken) wrapper.innerHTML = toStr(errorBox(err));
   }
 }
 
-document.addEventListener('click', (e) => {
+document.addEventListener('click', async (e) => {
   if (e.target.closest('[data-reload]')) location.reload();
+  if (e.target.closest('[data-more]')) openMore();
+  if (e.target.closest('[data-logout]')) {
+    document.querySelectorAll('dialog[open]').forEach((d) => d.close());
+    await sb.auth.signOut();
+  }
+});
+document.addEventListener('change', async (e) => {
+  if (!e.target.matches('[data-church-sw]')) return;
+  document.querySelectorAll('dialog[open]').forEach((d) => d.close());
+  await setChurch(e.target.value); shellFor = null; go('/');
 });
 
 async function boot() {
