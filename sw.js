@@ -1,7 +1,7 @@
 // Service worker mínimo: deixa o app instalável e abre a "casca" mesmo sem internet.
 // Rede primeiro (sempre pega a versão nova quando online); cache só como reserva.
 // Os DADOS (Supabase) nunca são guardados aqui.
-const CACHE = 'louvorganize-v1';
+const CACHE = 'louvorganize-v2';
 const SHELL = ['./', 'index.html', 'css/app.css', 'js/main.js', 'icons/icon.svg', 'manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
@@ -16,7 +16,8 @@ self.addEventListener('fetch', (e) => {
   const ours = url.origin === self.location.origin;
   const cdn = url.hostname === 'cdn.jsdelivr.net';
   if (!ours && !cdn) return;                               // Supabase e o resto passam direto
-  e.respondWith(fetch(req).then((res) => {
+  // 'no-cache' = sempre confere com o servidor (ETag), ignorando o max-age de 10 min do GitHub Pages
+  e.respondWith(fetch(req, ours ? { cache: 'no-cache' } : undefined).then((res) => {
     if (res.ok) { const copy = res.clone(); caches.open(CACHE).then((c) => c.put(req, copy)); }
     return res;
   }).catch(() => caches.match(req).then((hit) => hit || (req.mode === 'navigate' ? caches.match('index.html') : Response.error()))));
