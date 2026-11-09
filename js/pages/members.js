@@ -17,6 +17,7 @@ export default async function render(el, { params }) {
   const contacts = await getContacts();
   const access = new Map((await q(sb.from('memberships').select('user_id, role').eq('church_id', S.church.id))).map((m) => [m.user_id, m.role]));
   const myRole = S.role;
+  const admin = isAdmin();
   const st = { key: 'full_name', dir: 'asc', q: '', role: '', team: '', status: 'active' };
 
   const stateOf = (m) => (m.deleted_at ? 'archived' : m.user_id ? 'account' : m.status === 'invited' ? 'invited' : 'noaccount');
@@ -55,19 +56,20 @@ export default async function render(el, { params }) {
                   ${['admin', 'member'].map((r) => html`<option value="${r}" ${role === r || (r === 'member' && role === 'leader') ? 'selected' : ''}>${ROLE_LABEL[r]}</option>`)}</select>`
               : ROLE_LABEL[role]) : html`<span class="muted">—</span>`}</td>
           <td class="nowrap"><div class="actions">
-            ${s === 'archived' ? html`<button class="btn sm" data-act="restore" data-id="${m.id}">Restaurar</button>` : html`
+            ${!admin ? html`<a class="btn sm" href="#/integrantes/${m.id}">Ver</a>` : s === 'archived' ? html`<button class="btn sm" data-act="restore" data-id="${m.id}">Restaurar</button>` : html`
               <button class="btn sm" data-act="edit" data-id="${m.id}">Editar</button>
               ${s === 'noaccount' || s === 'invited' ? html`<button class="btn sm" data-act="invite" data-id="${m.id}">${s === 'invited' ? 'Novo convite' : 'Convidar'}</button>` : ''}
               <button class="btn sm danger" data-act="archive" data-id="${m.id}" aria-label="Arquivar ${m.full_name}">Arquivar</button>`}
           </div></td></tr>`;
       })}</tbody></table></div><p class="small muted" style="margin-top:.5rem">${rows.length} integrante(s)</p>`
       : empty('Nenhum integrante encontrado', st.q || st.role || st.team ? 'Tente limpar a busca ou os filtros.' : 'Cadastre quem serve no ministério.',
-          html`<button class="btn primary" data-act="new">+ Cadastrar integrante</button>`));
+          admin ? html`<button class="btn primary" data-act="new">+ Cadastrar integrante</button>` : ''));
   }
 
   el.innerHTML = toStr(html`
-    <div class="page-head"><div class="grow"><h1>Integrantes</h1></div>
-      <div class="actions"><button class="btn" data-act="csv">Importar CSV</button><button class="btn primary" data-act="new">+ Cadastrar integrante</button></div></div>
+    <div class="page-head"><div class="grow"><h1>Integrantes</h1>
+      ${admin ? '' : html`<p class="muted">Somente administradores cadastram, editam e convidam integrantes.</p>`}</div>
+      ${admin ? html`<div class="actions"><button class="btn" data-act="csv">Importar CSV</button><button class="btn primary" data-act="new">+ Cadastrar integrante</button></div>` : ''}</div>
     <div class="filters">
       <div style="flex:2 1 220px"><label for="q">Buscar por nome</label><input id="q" type="search" data-act="search" placeholder="Digite 2 letras ou mais" autocomplete="off"></div>
       <div><label for="fr">Função</label><select id="fr" data-act="flt" data-k="role"><option value="">Todas</option>${L.roles.filter((r) => r.active).map((r) => html`<option value="${r.id}">${r.name}</option>`)}</select></div>

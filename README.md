@@ -19,9 +19,10 @@ Sem build, sem Node para rodar: são arquivos HTML/CSS/JS puros.
 1. Crie uma conta em <https://supabase.com> e um **New project** (região mais próxima, ex.: São Paulo). Guarde a senha do banco.
 2. Abra **SQL Editor › New query**, cole **todo** o conteúdo de [`supabase/schema.sql`](supabase/schema.sql) e clique em **Run**.
    Deve terminar com “Success”. (Se rodar duas vezes dá erro de “já existe”: é normal, o esquema só vale para banco vazio.)
-3. Em **Project Settings › API**, copie a **Project URL** e a chave **anon public**.
-4. Cole os dois valores em [`js/config.js`](js/config.js). A chave *anon* é pública por natureza; quem protege os dados é o RLS do banco.
-   **Nunca** use a chave `service_role` aqui.
+3. Em **Project Settings › API Keys**, copie a **Project URL** e a **Publishable key** (`sb_publishable_…`).
+   Em projetos antigos ela se chama **anon public** (começa com `eyJ`); serve igual.
+4. Cole os dois valores em [`js/config.js`](js/config.js). A chave publicável é pública por natureza; quem protege os dados é o RLS do banco.
+   **Nunca** use a chave secreta (`sb_secret_…` ou `service_role`): o app se recusa a abrir com ela.
 5. **Authentication › URL Configuration**: em *Site URL* coloque o endereço do seu site (passo 2) e adicione o mesmo endereço em *Redirect URLs*.
    Sem isso, os links de confirmação de e-mail e de recuperação de senha não voltam para o site.
 6. **Authentication › Providers › Email**: decida sobre “Confirm email” (veja *Limites do plano grátis*).
@@ -64,10 +65,13 @@ cache offline dos dados (só a “casca” do app abre sem internet). Veja [`DEC
 docker run -d --name lo-pg -e POSTGRES_PASSWORD=x postgres:16-alpine
 sh tests/run-tests.sh                      # → "TODOS OS TESTES PASSARAM"
 
-# 2) Funções puras do front-end (Node 20+)
+# 2) Integração: as mesmas consultas do app contra um PostgREST real (o motor da API do Supabase)
+sh tests/run-api.sh                        # → "TODAS AS CONSULTAS DO APP FUNCIONAM NO POSTGREST"
+
+# 3) Funções puras do front-end (Node 20+)
 npm test
 
-# 3) Fumaça: monta todas as telas com dados falsos (Node 20+)
+# 4) Fumaça: monta todas as telas com dados falsos (Node 20+)
 npm i --no-save jsdom@24 && npm run smoke
 ```
 

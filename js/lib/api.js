@@ -1,8 +1,15 @@
 // Cliente Supabase, estado da sessão e cache de listas de referência.
-import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.45.4/+esm';
+import { createClient } from 'https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.118.0/+esm';
 import { SUPABASE_URL, SUPABASE_ANON_KEY } from '../config.js';
 
-export const configured = /^https:\/\/[a-z0-9-]+\.supabase\.(co|in)\/?$/i.test(SUPABASE_URL) && SUPABASE_ANON_KEY.length > 40;
+/** Recusa chaves secretas: elas ignoram o RLS e não podem ir para o navegador. */
+function isSecretKey(k) {
+  if (k.startsWith('sb_secret_')) return true;
+  try { return JSON.parse(atob(k.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))).role === 'service_role'; } catch { return false; }
+}
+export const secretKeyError = isSecretKey(SUPABASE_ANON_KEY);
+export const configured = !secretKeyError
+  && /^https:\/\/[a-z0-9-]+\.supabase\.(co|in)\/?$/i.test(SUPABASE_URL) && SUPABASE_ANON_KEY.length > 40;
 
 export const sb = configured
   ? createClient(SUPABASE_URL.replace(/\/$/, ''), SUPABASE_ANON_KEY, {
@@ -63,6 +70,7 @@ export async function loadContext() {
   if (!S.user) return;
   const ms = await q(sb.from('memberships')
     .select('id, church_id, role, churches(id, name, slug, timezone, public_mode, show_setlist_publicly)')
+    .eq('user_id', S.user.id)            // o RLS deixa ver os acessos de toda a igreja; aqui só os meus
     .order('created_at'));
   S.memberships = ms.filter((m) => m.churches);
   if (!S.memberships.length) return;

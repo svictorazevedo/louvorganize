@@ -959,6 +959,7 @@ end $fn$;
 -- ============================================================================
 -- Permissões (anon quase nada; authenticated só passa pelas políticas de RLS)
 -- ============================================================================
+grant usage on schema public to anon, authenticated;
 revoke all on all tables    in schema public from anon;
 revoke all on all sequences in schema public from anon;
 revoke execute on all functions in schema public from public, anon, authenticated;

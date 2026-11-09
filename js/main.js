@@ -1,5 +1,5 @@
 // Inicialização, roteador por hash (funciona no GitHub Pages) e estrutura da tela.
-import { configured, sb, S, loadContext, setChurch, isAdmin, isManager } from './lib/api.js';
+import { configured, secretKeyError, sb, S, loadContext, setChurch, isAdmin, isManager } from './lib/api.js';
 import { html, raw, toStr, spinner, errorBox, toast } from './lib/ui.js';
 
 const app = document.getElementById('app');
@@ -55,6 +55,14 @@ function parseHash() {
 const go = (p) => { if (location.hash !== '#' + p) location.hash = '#' + p; else route(); };
 
 function setupScreen() {
+  if (secretKeyError) {
+    app.innerHTML = toStr(html`<div class="auth"><div class="card"><div class="logo">LouvOrganize</div>
+      <h1>Chave errada em js/config.js</h1>
+      <div class="alert bad">Você colou a chave <strong>secreta</strong> do Supabase. Ela dá acesso total ao banco e não pode ficar num site público.</div>
+      <ol><li>Troque em <code>js/config.js</code> pela chave <strong>publicável</strong> (<code>sb_publishable_…</code>) ou <em>anon public</em>.</li>
+      <li>Por segurança, gere uma nova chave secreta no Supabase (<em>Project Settings › API Keys</em>), já que esta pode ter vazado.</li></ol></div></div>`);
+    return;
+  }
   app.innerHTML = toStr(html`<div class="auth"><div class="card">
     <div class="logo">LouvOrganize</div>
     <h1>Falta conectar o banco de dados</h1>
@@ -62,7 +70,7 @@ function setupScreen() {
     <ol>
       <li>Crie um projeto grátis em <strong>supabase.com</strong>.</li>
       <li>No <em>SQL Editor</em>, rode o arquivo <code>supabase/schema.sql</code>.</li>
-      <li>Em <em>Project Settings › API</em>, copie a <strong>Project URL</strong> e a chave <strong>anon public</strong> para <code>js/config.js</code>.</li>
+      <li>Em <em>Project Settings › API Keys</em>, copie a <strong>Project URL</strong> e a chave <strong>publicável</strong> (<code>sb_publishable_…</code>) para <code>js/config.js</code>.</li>
       <li>Publique de novo. O passo a passo completo está no <code>README.md</code>.</li>
     </ol></div></div>`);
 }
