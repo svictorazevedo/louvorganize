@@ -68,7 +68,7 @@ create table roles (
   name          text not null check (char_length(btrim(name)) between 2 and 60),
   category      text not null default 'instrumento'
                 check (category in ('voz','instrumento','tecnica','lideranca')),
-  color         text not null default '#7A1F3D' check (color ~ '^#[0-9a-fA-F]{6}$'),
+  color         text not null default '#3446D4' check (color ~ '^#[0-9a-fA-F]{6}$'),
   is_essential  boolean not null default false,
   active        boolean not null default true,
   unique (id, church_id)
@@ -476,8 +476,8 @@ begin
   insert into memberships (church_id, user_id, role) values (c, auth.uid(), 'owner');
   insert into members (church_id, user_id, full_name) values (c, auth.uid(), btrim(p_member_name)) returning id into m;
   insert into roles (church_id, name, category, color, is_essential) values
-    (c, 'Ministro',            'lideranca',   '#7A1F3D', true),
-    (c, 'Vocal',               'voz',         '#B5446E', false),
+    (c, 'Ministro',            'lideranca',   '#3446D4', true),
+    (c, 'Vocal',               'voz',         '#7C5CD6', false),
     (c, 'Violão',              'instrumento', '#B8860B', false),
     (c, 'Guitarra',            'instrumento', '#C2571A', false),
     (c, 'Contrabaixo',         'instrumento', '#2F5D62', false),

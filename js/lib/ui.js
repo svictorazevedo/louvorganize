@@ -171,7 +171,7 @@ export const EVENT_STATUS = {
 };
 export const eventChip = (s) => html`<span class="chip ${EVENT_STATUS[s]?.cls ?? ''}">${EVENT_STATUS[s]?.label ?? s}</span>`;
 export const KIND = { culto: 'Culto', evento: 'Evento', ensaio: 'Ensaio' };
-export const KIND_COLOR = { culto: '#7A1F3D', evento: '#2F5D62', ensaio: '#B8860B' };
+export const KIND_COLOR = { culto: '#3446D4', evento: '#0E8A7E', ensaio: '#B7791F' };
 export const CATEGORY = { voz: 'Voz', instrumento: 'Instrumento', tecnica: 'Técnica', lideranca: 'Liderança' };
 export const MOMENT = { abertura: 'Abertura', adoracao: 'Adoração', ofertorio: 'Ofertório', ministracao: 'Ministração', encerramento: 'Encerramento' };
 

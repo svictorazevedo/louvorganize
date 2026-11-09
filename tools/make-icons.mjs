@@ -2,7 +2,11 @@
 import { deflateSync } from 'node:zlib';
 import { writeFileSync } from 'node:fs';
 
-const WINE = [0x7A, 0x1F, 0x3D], WHITE = [0xFF, 0xFF, 0xFF];
+const C0 = [0x44, 0x57, 0xE8], C1 = [0x2E, 0x35, 0xB0], C2 = [0x24, 0x1F, 0x7A], WHITE = [0xFF, 0xFF, 0xFF], GOLD = [0xE5, 0xB6, 0x5A];
+const mix = (a, b, t) => a.map((v, i) => v + (b[i] - v) * t);
+// degradê diagonal índigo
+const bgAt = (x, y) => { const t = (x + y) / 2; return t < .55 ? mix(C0, C1, t / .55) : mix(C1, C2, (t - .55) / .45); };
+const inGold = (x, y) => (x - .73) ** 2 + (y - .70) ** 2 <= .04 ** 2;
 const inEllipse = (x, y, cx, cy, rx, ry, rot) => {
   const c = Math.cos(rot), s = Math.sin(rot), dx = x - cx, dy = y - cy;
   const u = dx * c + dy * s, v = -dx * s + dy * c;
@@ -30,7 +34,8 @@ function png(size) {
       let hit = 0;
       for (let sy = 0; sy < SS; sy++) for (let sx = 0; sx < SS; sx++) if (note((px + (sx + 0.5) / SS) / size, (py + (sy + 0.5) / SS) / size)) hit++;
       const t = hit / (SS * SS), o = py * (size * 4 + 1) + 1 + px * 4;
-      for (let k = 0; k < 3; k++) raw[o + k] = Math.round(WINE[k] * (1 - t) + WHITE[k] * t);
+      const fx = (px + .5) / size, fy = (py + .5) / size; const base = inGold(fx, fy) ? GOLD : bgAt(fx, fy);
+      for (let k = 0; k < 3; k++) raw[o + k] = Math.round(base[k] * (1 - t) + WHITE[k] * t);
       raw[o + 3] = 255;
     }
   }

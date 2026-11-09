@@ -33,7 +33,7 @@ export default async function render(el) {
       body: html`<div class="field"><label for="n">Nome</label><input id="n" name="n" required minlength="2" maxlength="60" value="${r?.name ?? ''}"></div>
         <div class="grid2"><div class="field"><label for="c">Categoria</label><select id="c" name="c">
           ${Object.entries(CATEGORY).map(([k, v]) => html`<option value="${k}" ${(r?.category ?? 'instrumento') === k ? 'selected' : ''}>${v}</option>`)}</select></div>
-          <div class="field"><label for="k">Cor</label><input id="k" name="k" type="color" value="${r?.color ?? '#7A1F3D'}"></div></div>
+          <div class="field"><label for="k">Cor</label><input id="k" name="k" type="color" value="${r?.color ?? '#3446D4'}"></div></div>
         <label class="check"><input type="checkbox" name="e" ${r?.is_essential ? 'checked' : ''}> Função essencial (alerta se faltar na escala)</label>`,
       onSubmit: async (fd) => {
         const row = { church_id: S.church.id, name: String(fd.get('n')).trim(), category: fd.get('c'), color: fd.get('k'), is_essential: fd.get('e') === 'on' };

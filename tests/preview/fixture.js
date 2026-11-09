@@ -5,7 +5,7 @@ const C = id(1), U = id(2);
 const church = { id: C, name: 'Igreja Teste', slug: 'teste', timezone: 'America/Cuiaba', public_mode: 'link', show_setlist_publicly: true };
 const inDays = (n, h = 23) => new Date(Date.now() + n * 864e5).toISOString().replace(/T\d\d/, `T${h}`);
 const roles = [
-  { id: id(10), church_id: C, name: 'Vocal', category: 'voz', color: '#B5446E', is_essential: true, active: true },
+  { id: id(10), church_id: C, name: 'Vocal', category: 'voz', color: '#7C5CD6', is_essential: true, active: true },
   { id: id(11), church_id: C, name: 'Violão', category: 'instrumento', color: '#B8860B', is_essential: false, active: true },
   { id: id(12), church_id: C, name: 'Bateria', category: 'instrumento', color: '#4A5D23', is_essential: true, active: false },
 ];
@@ -20,7 +20,7 @@ const ev1 = { id: id(50), church_id: C, team_id: id(30), kind: 'evento', title: 
 const ev2 = { id: id(51), church_id: C, team_id: id(30), kind: 'culto', title: null, starts_at: inDays(17), location: null, status: 'draft', notes: 'interno', deleted_at: null, setlist_items: [{ count: 0 }] };
 const asg = (n, member, role, status, extra = {}) => ({ id: id(n), church_id: C, event_id: ev1.id, member_id: member, role_id: role, status, decline_reason: null, suggested_substitute_id: null, attended: null, events: ev1, ...extra });
 const roster = [
-  { event_id: ev1.id, assignment_id: id(60), member_id: id(20), member_name: 'Ana Souza', role_id: id(10), role_name: 'Vocal', role_color: '#B5446E', role_category: 'voz', status: 'pending', responded_by_name: null, decline_reason: null, attended: null },
+  { event_id: ev1.id, assignment_id: id(60), member_id: id(20), member_name: 'Ana Souza', role_id: id(10), role_name: 'Vocal', role_color: '#7C5CD6', role_category: 'voz', status: 'pending', responded_by_name: null, decline_reason: null, attended: null },
   { event_id: ev1.id, assignment_id: id(61), member_id: id(21), member_name: 'Caio Mendes', role_id: id(11), role_name: 'Violão', role_color: '#B8860B', role_category: 'instrumento', status: 'declined', responded_by_name: 'Ana Souza', decline_reason: 'Viagem a trabalho no fim de semana', attended: null },
 ];
 const pub = { church: { name: 'Igreja Teste', timezone: 'America/Cuiaba', public_mode: 'link' },

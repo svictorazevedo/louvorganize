@@ -72,4 +72,4 @@ export default async function render(el, { query }) {
   actions(el, {});
 }
 
-const KIND_COLORS = { culto: '#7A1F3D', evento: '#2F5D62', ensaio: '#B8860B' };
+const KIND_COLORS = { culto: '#3446D4', evento: '#0E8A7E', ensaio: '#B7791F' };
