@@ -77,6 +77,31 @@ await check('líder (Caio) cria escala da equipe dele', async () => {
   const e = await ok(as(CAIO).from('events').insert({ church_id: C, kind: 'ensaio', team_id: ev.team_id, starts_at: new Date(Date.now() + 41 * 864e5).toISOString(), created_by: CAIO }).select('id').single());
   must(e.id, 'sem id');
 });
+await check('ensaio: clonar equipe e setlist de um culto (líder Caio)', async () => {
+  const caio = as(CAIO); const cols = 'song_id, key_override, bpm_override, moment';
+  const d = new Date(ev.starts_at); const from = new Date(d - 12 * 3600e3).toISOString(); const to = new Date(+d + 12 * 3600e3).toISOString();
+  const opts = await ok(caio.from('events').select('id, kind, title, starts_at, status, team_id').eq('church_id', C).in('kind', ['culto', 'evento'])
+    .is('deleted_at', null).neq('status', 'cancelled').gte('starts_at', from).lt('starts_at', to).order('starts_at'));
+  must(opts.some((o) => o.id === ev.id), 'culto não listado na data');
+  const e = await ok(caio.from('events').insert({ church_id: C, kind: 'ensaio', team_id: ev.team_id, starts_at: new Date(d - 3 * 864e5).toISOString(), created_by: CAIO }).select('id').single());
+  const clone = async () => {
+    const [asg, items, cur] = await Promise.all([
+      ok(caio.from('assignments').select('member_id, role_id').eq('event_id', ev.id).not('status', 'in', '(declined,replaced,cancelled)')),
+      ok(caio.from('setlist_items').select(cols).eq('event_id', ev.id).order('position')),
+      ok(caio.from('setlist_items').select(cols).eq('event_id', e.id).order('position')),
+    ]);
+    await ok(caio.from('assignments').upsert(asg.map((a) => ({ church_id: C, event_id: e.id, member_id: a.member_id, role_id: a.role_id, status: 'pending' })),
+      { onConflict: 'event_id,member_id,role_id', ignoreDuplicates: true }));
+    const have = new Set(cur.map((x) => x.song_id)); const add = items.filter((x) => !have.has(x.song_id));
+    if (add.length) await ok(caio.rpc('save_setlist', { p_event: e.id, p_items: [...cur, ...add] }));
+    return asg.length;
+  };
+  const n = await clone(); await clone();   // segunda vez não duplica
+  const [a2, s1, s2] = await Promise.all([ok(caio.from('assignments').select('id').eq('event_id', e.id)),
+    ok(caio.from('setlist_items').select('song_id').eq('event_id', ev.id)), ok(caio.from('setlist_items').select('song_id').eq('event_id', e.id))]);
+  must(n > 0 && a2.length === n && s2.length === s1.length && s1.length > 0, `asg ${n}/${a2.length} set ${s1.length}/${s2.length}`);
+  return `${n} escalação(ões), ${s2.length} música(s)`;
+});
 await check('integrante comum (Duda) NÃO cria escala', async () => {
   const { error } = await as(DUDA).from('events').insert({ church_id: C, kind: 'ensaio', starts_at: now }).select('id').single();
   must(error, 'deveria falhar');

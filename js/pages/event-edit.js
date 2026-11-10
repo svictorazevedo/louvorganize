@@ -119,6 +119,15 @@ export default async function render(el, { params, query, go }) {
           <select id="team" name="team" ${isAdmin() ? '' : 'required'} ${dis}>${isAdmin() ? html`<option value="">Sem equipe (escalar manualmente)</option>` : html`<option value="">Escolha…</option>`}
             ${teams.map((t) => html`<option value="${t.id}" ${e?.team_id === t.id ? 'selected' : ''}>${t.name}</option>`)}</select></div>
       </div>
+      ${locked() ? '' : html`<div class="alert info" id="clonebox" ${kind === 'ensaio' ? '' : raw('hidden')}>
+        <p style="margin:0 0 .5rem"><strong>Ensaio para qual culto ou evento?</strong> Informe a data para copiar a equipe (integrantes e funções) e o setlist.</p>
+        <div class="grid2">
+          <div class="field"><label for="cd">Data do culto/evento</label><input id="cd" name="cd" type="date" data-act="clone-date"></div>
+          <div class="field"><label for="cs">Culto ou evento</label><select id="cs" name="cs"><option value="">Escolha a data primeiro…</option></select></div>
+        </div>
+        <div class="row"><button class="btn" type="button" data-act="clone">Clonar equipe e setlist</button>
+          <span class="hint small">${e ? 'Quem já está escalado e as músicas já no setlist são mantidos.' : 'A escala de ensaio é salva e as informações são copiadas.'}</span></div>
+      </div>`}
       <div class="field"><label for="notes">Observações internas <span class="hint">Não aparecem na página pública</span></label>
         <textarea id="notes" name="notes" maxlength="1000" ${dis}>${e?.notes ?? ''}</textarea></div>
       ${!e ? html`<div class="grid2"><div class="field"><label for="rec">Repetir</label><select id="rec" name="rec">
@@ -244,11 +253,58 @@ export default async function render(el, { params, query, go }) {
   const asArg = (r) => ({ id: r.assignment_id, role_id: r.role_id, member_id: r.member_id });
   const fail = (e) => toast(e.message || String(e), 'bad');
 
+  // ── ensaio: clonar equipe e setlist de um culto/evento ───────────────────
+  async function cloneOptions(date) {
+    const from = zonedToUtc(date, '00:00', tz()); const to = zonedToUtc(addDays(date, 1), '00:00', tz());
+    const rows = await q(sb.from('events').select('id, kind, title, starts_at, status, team_id').eq('church_id', S.church.id)
+      .in('kind', ['culto', 'evento']).is('deleted_at', null).neq('status', 'cancelled')
+      .gte('starts_at', from).lt('starts_at', to).order('starts_at'));
+    return rows.filter((r) => r.id !== st.id);
+  }
+  /** Copia escalados (como pendentes) e setlist da escala de origem; mantém o que o destino já tem. */
+  async function cloneInto(targetId, sourceId) {
+    const cols = 'song_id, key_override, bpm_override, moment';
+    const [asg, items, cur] = await Promise.all([
+      q(sb.from('assignments').select('member_id, role_id').eq('event_id', sourceId).not('status', 'in', '(declined,replaced,cancelled)')),
+      q(sb.from('setlist_items').select(cols).eq('event_id', sourceId).order('position')),
+      q(sb.from('setlist_items').select(cols).eq('event_id', targetId).order('position')),
+    ]);
+    if (asg.length) {
+      await q(sb.from('assignments').upsert(asg.map((a) => ({ church_id: S.church.id, event_id: targetId, member_id: a.member_id, role_id: a.role_id, status: 'pending' })),
+        { onConflict: 'event_id,member_id,role_id', ignoreDuplicates: true }));
+    }
+    const have = new Set(cur.map((x) => x.song_id));
+    const add = items.filter((x) => !have.has(x.song_id));
+    if (add.length) await q(sb.rpc('save_setlist', { p_event: targetId, p_items: [...cur, ...add] }));
+    return { people: asg.length, songs: add.length };
+  }
+  const cloneMsg = (r) => `Copiados do culto/evento: ${r.people} escalação(ões) e ${r.songs} música(s) novas no setlist.`;
+  const canUseTeam = (tid) => tid && (isAdmin() || L.teamById.get(tid)?.leader_id === S.me?.id);
+
+  async function cloneNow() {
+    const form = el.querySelector('#evform');
+    const sid = form.querySelector('#cs').value;
+    if (!sid) { toast('Informe a data e escolha o culto ou evento a copiar.', 'bad'); form.querySelector(form.querySelector('#cd').value ? '#cs' : '#cd').focus(); return; }
+    if (!st.ev) { if (form.reportValidity()) saveEvent(form); return; }   // novo ensaio: salva e clona
+    if (st.setDirty && !(await confirmDialog({ title: 'Descartar alterações do setlist?', confirmText: 'Clonar mesmo assim', danger: true,
+      message: html`<p>Há alterações no setlist ainda não salvas. Elas serão perdidas.</p>` }))) return;
+    try {
+      const src = await q(sb.from('events').select('team_id').eq('id', sid).single());
+      if (!st.ev.team_id && canUseTeam(src.team_id)) await q(sb.from('events').update({ team_id: src.team_id }).eq('id', st.ev.id));
+      toast(cloneMsg(await cloneInto(st.ev.id, sid)));
+      await reload();
+    } catch (e) { fail(e); }
+  }
+
   async function saveEvent(form) {
     const fd = new FormData(form);
     const kind = fd.get('k'); const title = String(fd.get('title') ?? '').trim();
     if (kind === 'evento' && title.length < 3) { toast('Para escalas do tipo “Evento”, informe o nome do evento (mínimo 3 letras).', 'bad'); return; }
-    const team = fd.get('team') || null;
+    let team = fd.get('team') || null;
+    const cloneSrc = !st.ev && kind === 'ensaio' ? (fd.get('cs') || null) : null;
+    if (cloneSrc && !team) {
+      try { const src = await q(sb.from('events').select('team_id').eq('id', cloneSrc).single()); if (canUseTeam(src.team_id)) team = src.team_id; } catch (e) { fail(e); return; }
+    }
     const base = {
       church_id: S.church.id, kind, title: kind === 'evento' ? title : null,
       location: String(fd.get('loc')).trim() || null, notes: String(fd.get('notes')).trim() || null, team_id: team,
@@ -260,13 +316,15 @@ export default async function render(el, { params, query, go }) {
         const dates = [fd.get('d')];
         for (let i = 1; i < n; i++) dates.push(rec === 'w' ? addDays(fd.get('d'), 7 * i) : rec === 'q' ? addDays(fd.get('d'), 14 * i) : addMonthsKeepWeekday(fd.get('d'), i));
         const recurrence_id = n > 1 ? crypto.randomUUID() : null;
-        const created = [];
+        const created = []; let cloned = null;
         for (const d of dates) {
           const ev = await q(sb.from('events').insert({ ...base, starts_at: zonedToUtc(d, fd.get('t'), tz()), recurrence_id, created_by: S.user.id }).select('id').single());
           if (team) await q(sb.rpc('apply_team', { p_event: ev.id, p_team: team }));
+          if (cloneSrc) cloned = await cloneInto(ev.id, cloneSrc);
           created.push(ev.id);
         }
-        toast(n > 1 ? `${n} rascunhos criados.` : 'Rascunho salvo. Agora ajuste as escalações e o setlist.');
+        toast(cloned ? (n > 1 ? `${n} rascunhos criados. ` : 'Rascunho salvo. ') + cloneMsg(cloned)
+          : n > 1 ? `${n} rascunhos criados.` : 'Rascunho salvo. Agora ajuste as escalações e o setlist.');
         go(n > 1 ? '/escalas' : '/escalas/' + created[0]);
       } else {
         const timeChanged = startsAt !== new Date(st.ev.starts_at).toISOString();
@@ -334,6 +392,7 @@ export default async function render(el, { params, query, go }) {
   // ── ações ────────────────────────────────────────────────────────────────
   actions(el, {
     publish,
+    clone: cloneNow,
     share: () => shareDialog('Mensagem para o grupo'),
     cancel: async () => {
       if (!(await confirmDialog({ title: 'Cancelar esta escala?', danger: true, confirmText: 'Cancelar escala',
@@ -384,6 +443,19 @@ export default async function render(el, { params, query, go }) {
     'set-moment': (i) => { st.setlist[+i.dataset.i].moment = i.value || null; st.setDirty = true; markDirty(); },
     kind: (s) => {
       const on = s.value === 'evento'; el.querySelector('#titlefield').hidden = !on; el.querySelector('#title').required = on;
+      const box = el.querySelector('#clonebox');
+      if (box) { box.hidden = s.value !== 'ensaio'; if (!box.hidden && !el.querySelector('#cd').value) el.querySelector('#cd').focus(); }
+    },
+    'clone-date': async (inp) => {
+      const sel = el.querySelector('#cs');
+      if (!inp.value) { sel.innerHTML = '<option value="">Escolha a data primeiro…</option>'; return; }
+      sel.innerHTML = '<option value="">Carregando…</option>';
+      try {
+        const rows = await cloneOptions(inp.value);
+        sel.innerHTML = !rows.length ? '<option value="">Nenhum culto ou evento nesta data</option>'
+          : (rows.length > 1 ? '<option value="">Escolha…</option>' : '')
+            + rows.map((r) => `<option value="${esc(r.id)}">${esc(evName(r))} — ${esc(fmtTime(r.starts_at, tz()))}${r.status === 'draft' ? ' (rascunho)' : ''}</option>`).join('');
+      } catch (e) { sel.innerHTML = '<option value="">Erro ao carregar</option>'; fail(e); }
     },
     'pick-member': (sel) => {
       const m = L.memberById.get(sel.value); const r = el.querySelector('#ar');
