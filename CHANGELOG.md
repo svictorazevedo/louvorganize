@@ -2,6 +2,9 @@
 
 O LouvOrganize segue o [versionamento semântico](https://semver.org/lang/pt-BR/). A versão em uso aparece no rodapé do menu, no menu "Mais" (celular) e na tela de entrada. Ela vem de `js/version.js`.
 
+## 1.1.1 — 10/11/2026
+- Correção: depois de uma atualização, as telas passam a ser baixadas de novo (antes o navegador podia mostrar a versão antiga por até 10 minutos, mesmo com Ctrl+F5).
+
 ## 1.1.0 — 10/11/2026
 - Ensaio: botão **Clonar equipe e setlist**, que copia os escalados e o repertório de um culto ou evento escolhido pela data.
 - Versão do sistema exibida na interface.

@@ -202,7 +202,8 @@ async function route() {
   window.scrollTo(0, 0);
 
   try {
-    const page = await import(`./pages/${mod}.js`);
+    // ?v= força o navegador a buscar as telas da versão nova (o GitHub Pages guarda arquivos por 10 min)
+    const page = await import(`./pages/${mod}.js?v=${VERSION}`);
     if (token !== navToken) return;
     await page.default(wrapper, { params: m.slice(1), query, opt, go });
     labelTables(wrapper);
