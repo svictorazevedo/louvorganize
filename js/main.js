@@ -1,6 +1,9 @@
 // Inicialização, roteador por hash (funciona no GitHub Pages) e estrutura da tela.
 import { configured, secretKeyError, sb, S, loadContext, setChurch, isAdmin, isManager } from './lib/api.js';
 import { html, raw, toStr, spinner, errorBox, toast, icon, initials, showDialog } from './lib/ui.js';
+import { VERSION, RELEASED } from './version.js';
+
+const versionTag = () => html`<p class="app-ver" title="Versão ${VERSION}, publicada em ${RELEASED.split('-').reverse().join('/')}">LouvOrganize v${VERSION}</p>`;
 
 const app = document.getElementById('app');
 
@@ -100,6 +103,7 @@ function renderShell() {
           <a href="#/i/${S.church.slug}" target="_blank" rel="noopener">${icon('external', 18)}<span>Página pública</span></a>
           <button type="button" data-logout>${icon('logout', 18)}<span>Sair</span></button>
           <div class="me"><span class="av" aria-hidden="true">${initials(name)}</span><span><strong>${name}</strong><small>${ROLE_NAME[S.role] ?? ''}</small></span></div>
+          ${versionTag()}
         </div>
       </aside>
       <header class="mtop">
@@ -127,7 +131,7 @@ function openMore() {
         ${rest.map(([p, label, , ic]) => html`<a href="#${p}" ${isOn(p, path) ? raw('aria-current="page"') : ''}>${icon(ic)}<span>${label}</span>${icon('chevron', 18)}</a>`)}
         <a href="#/i/${S.church.slug}" target="_blank" rel="noopener">${icon('external')}<span>Página pública</span>${icon('chevron', 18)}</a>
         <button type="button" data-logout class="danger-text">${icon('logout')}<span>Sair da conta</span></button>
-      </nav></div>`);
+      </nav>${versionTag()}</div>`);
   dlg.classList.add('sheet');
   dlg.querySelectorAll('a[href^="#/"]').forEach((a) => a.addEventListener('click', () => dlg.close()));
 }

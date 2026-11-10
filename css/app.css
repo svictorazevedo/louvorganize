@@ -407,3 +407,7 @@ body.is-bare { background:
   .card { box-shadow: none; border: 0; padding: 0; }
   main { padding: 0; }
 }
+
+/* Versão do sistema: discreta, sem competir com o conteúdo */
+.app-ver { margin: .75rem 0 0; text-align: center; font-size: .7rem; letter-spacing: .02em; color: var(--muted); opacity: .75; font-variant-numeric: tabular-nums; user-select: all; }
+.side-foot .app-ver { text-align: left; padding: 0 .5rem; }

@@ -1,8 +1,8 @@
 // Service worker mínimo: deixa o app instalável e abre a "casca" mesmo sem internet.
 // Rede primeiro (sempre pega a versão nova quando online); cache só como reserva.
 // Os DADOS (Supabase) nunca são guardados aqui.
-const CACHE = 'louvorganize-v4';
-const SHELL = ['./', 'index.html', 'css/app.css', 'js/main.js', 'icons/icon.svg', 'manifest.webmanifest'];
+const CACHE = 'louvorganize-v5';
+const SHELL = ['./', 'index.html', 'css/app.css', 'js/main.js', 'js/version.js', 'icons/icon.svg', 'manifest.webmanifest'];
 
 self.addEventListener('install', (e) => {
   e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)).then(() => self.skipWaiting()));

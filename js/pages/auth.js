@@ -1,6 +1,7 @@
 // Entrar, cadastrar, recuperar e redefinir senha (RF-101, RF-103).
 import { sb, friendly } from '../lib/api.js';
 import { html, toStr, esc } from '../lib/ui.js';
+import { VERSION } from '../version.js';
 
 const redirectUrl = () => location.origin + location.pathname;
 
@@ -41,6 +42,7 @@ export default async function render(el, { opt, go }) {
       <label for="code">Tenho um código de convite</label>
       <div class="row"><input id="code" class="grow" autocomplete="off" placeholder="Cole o código aqui" style="flex:1 1 200px">
       <button class="btn" type="submit">Continuar</button></div></form></div>` : ''}
+    <p class="app-ver">LouvOrganize v${VERSION}</p>
   </div>`);
 
   const msg = (kind, text) => { el.querySelector('#msg').innerHTML = `<div class="alert ${kind}">${esc(text)}</div>`; };
