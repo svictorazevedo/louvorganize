@@ -62,9 +62,12 @@ export default async function render(el, { opt, go }) {
         const { error } = await sb.auth.signInWithPassword({ email: v.email.trim(), password: v.password });
         if (error) throw friendly(error);
       } else if (mode === 'signup') {
+        // o código do convite vai junto na conta: sobrevive ao link de confirmação aberto em outra aba/navegador
+        let invite = null;
+        try { invite = localStorage.getItem('lo.invite'); } catch { /* ignore */ }
         const { data, error } = await sb.auth.signUp({
           email: v.email.trim(), password: v.password,
-          options: { data: { full_name: v.name.trim() }, emailRedirectTo: redirectUrl() },
+          options: { data: { full_name: v.name.trim(), ...(invite ? { invite } : {}) }, emailRedirectTo: redirectUrl() },
         });
         if (error) throw friendly(error);
         try { sessionStorage.setItem('lo.name', v.name.trim()); } catch { /* ignore */ }

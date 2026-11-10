@@ -295,7 +295,9 @@ export default async function render(el, { params, query, go }) {
     const name = mName(mid);
     const already = live().filter((r) => r.member_id === mid);
     if (already.some((r) => r.role_id === rid)) { toast(`${name} já está escalado(a) nesta função.`, 'bad'); return; }
-    if (already.length && !(await confirmDialog({ title: 'Já escalado(a) nesta escala', confirmText: 'Escalar também nesta função',
+    // acumular uma função que já está no cadastro da pessoa (ex.: Vocal + Violão) não precisa de confirmação
+    const registered = (L.memberById.get(mid)?.member_roles ?? []).some((x) => x.role_id === rid);
+    if (already.length && !registered && !(await confirmDialog({ title: 'Já escalado(a) nesta escala', confirmText: 'Escalar também nesta função',
       message: html`<p><strong>${name}</strong> já está como <strong>${already.map((r) => r.role_name).join(', ')}</strong>. Escalar em mais uma função?</p>` }))) return;
     if (st.unav.has(mid) && !(await confirmDialog({ title: 'Integrante indisponível', confirmText: 'Escalar mesmo assim', danger: true,
       message: html`<p><strong>${name}</strong> registrou que não pode servir nesta data${st.unav.get(mid) ? html`: “${st.unav.get(mid)}”` : ''}. Escalar mesmo assim?</p>` }))) return;

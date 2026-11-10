@@ -22,13 +22,17 @@ export default async function render(el, { params, go }) {
     const free = members.filter((m) => !comp.some((c) => c.member_id === m.id));
     el.querySelector('#comp').innerHTML = toStr(html`
       <p class="small ${n > MAX || n < 1 ? '' : 'muted'}" aria-live="polite"><strong>${n}</strong> de ${MAX} integrantes${n > MAX ? ' — remova alguém (máximo ' + MAX + ').' : n < 1 ? ' — adicione pelo menos 1.' : ''}</p>
-      ${comp.length ? html`<ul class="list">${comp.map((c, i) => {
-        const m = L.memberById.get(c.member_id); const opts = rolesOf(c.member_id);
-        return html`<li><span class="grow"><strong>${m?.full_name}</strong></span>
-          <label class="sr-only" for="cr${i}">Função de ${m?.full_name}</label>
-          <select id="cr${i}" data-act="role" data-i="${i}" style="width:auto">${opts.map((r) => html`<option value="${r.id}" ${r.id === c.role_id ? 'selected' : ''}>${r.name}</option>`)}</select>
-          <button type="button" class="btn sm danger" data-act="rm" data-i="${i}" aria-label="Tirar ${m?.full_name}">Remover</button></li>`;
-      })}</ul>` : html`<p class="muted">Nenhum integrante ainda.</p>`}
+      ${comp.length ? html`<ul class="list">${[...new Set(comp.map((c) => c.member_id))].map((mid) => {
+        // uma linha por pessoa; marque quantas funções ela acumula (ex.: Vocal + Violão)
+        const m = L.memberById.get(mid); const mine = comp.filter((c) => c.member_id === mid).map((c) => c.role_id);
+        const opts = [...rolesOf(mid)];
+        mine.forEach((rid) => { if (!opts.some((r) => r.id === rid) && L.roleById.get(rid)) opts.push(L.roleById.get(rid)); });
+        return html`<li style="flex-wrap:wrap"><span class="grow"><strong>${m?.full_name}</strong></span>
+          <button type="button" class="btn sm danger" data-act="rm" data-m="${mid}" aria-label="Tirar ${m?.full_name}">Remover</button>
+          <fieldset style="flex-basis:100%;border:0;margin:0;padding:0"><legend class="sr-only">Funções de ${m?.full_name} nesta equipe</legend>
+          <div class="chips">${opts.map((r) => html`<label class="check" style="margin:0"><input type="checkbox" data-act="role" data-m="${mid}" value="${r.id}" ${mine.includes(r.id) ? 'checked' : ''}> ${r.name}</label>`)}</div></fieldset></li>`;
+      })}</ul>
+      <p class="small muted">Marque mais de uma função para quem acumula, por exemplo Vocal e Violão.</p>` : html`<p class="muted">Nenhum integrante ainda.</p>`}
       ${essential.length && comp.length ? html`<div class="alert warn">Esta equipe não cobre: <strong>${essential.map((r) => r.name).join(', ')}</strong> (função essencial). É só um alerta; você pode salvar.</div>` : ''}
       <div class="row" style="margin-top:.75rem"><div class="grow"><label for="addm" class="sr-only">Adicionar integrante</label>
         <select id="addm"><option value="">Adicionar integrante…</option>${free.map((m) => html`<option value="${m.id}">${m.full_name}</option>`)}</select></div>
@@ -65,9 +69,15 @@ export default async function render(el, { params, go }) {
       const primary = (L.memberById.get(mid).member_roles.find((r) => r.is_primary)?.role_id) ?? opts[0].id;
       comp.push({ member_id: mid, role_id: opts.some((r) => r.id === primary) ? primary : opts[0].id }); dirty = true; draw();
     },
-    rm: (b) => { comp.splice(+b.dataset.i, 1); dirty = true; draw(); },
+    rm: (b) => { comp = comp.filter((c) => c.member_id !== b.dataset.m); dirty = true; draw(); },
   });
-  actions(el, { role: (s) => { comp[+s.dataset.i].role_id = s.value; dirty = true; } }, 'change');
+  actions(el, { role: (cb) => {
+    const mid = cb.dataset.m; const rid = cb.value;
+    if (cb.checked) { if (!comp.some((c) => c.member_id === mid && c.role_id === rid)) comp.push({ member_id: mid, role_id: rid }); }
+    else if (comp.filter((c) => c.member_id === mid).length <= 1) { cb.checked = true; toast('Deixe pelo menos uma função. Para tirar a pessoa da equipe, use Remover.', 'bad'); return; }
+    else comp = comp.filter((c) => !(c.member_id === mid && c.role_id === rid));
+    dirty = true;
+  } }, 'change');
 
   el.querySelector('#f').addEventListener('submit', async (e) => {
     e.preventDefault();

@@ -174,7 +174,8 @@ async function route() {
   if (S.user && opt.mode && opt.mode !== 'newpass') {
     let next = '/';
     try { next = sessionStorage.getItem('lo.next') || '/'; sessionStorage.removeItem('lo.next'); } catch { /* ignore */ }
-    return go(S.church ? next : '/comecar');
+    // convite pendente vale mesmo sem igreja (é justamente o caso de quem foi convidado)
+    return go(S.church || next.startsWith('/convite/') ? next : '/comecar');
   }
   if (opt.admin && !isAdmin()) { toast('Somente administradores acessam esta área.', 'bad'); return go('/'); }
   if (opt.manager && !isManager()) { toast('Somente líderes e administradores acessam esta área.', 'bad'); return go('/'); }

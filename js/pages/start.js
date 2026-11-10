@@ -6,8 +6,20 @@ export const slugify = (s) =>
   String(s).normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
     .replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '').slice(0, 40);
 
+// convite guardado antes do login/cadastro (localStorage) ou na própria conta (user_metadata.invite)
+function pendingInvite() {
+  let c = null;
+  try { c = localStorage.getItem('lo.invite'); } catch { /* ignore */ }
+  return c || S.user?.user_metadata?.invite || null;
+}
+function clearPendingInvite() {
+  try { localStorage.removeItem('lo.invite'); } catch { /* ignore */ }
+  if (S.user?.user_metadata?.invite) sb.auth.updateUser({ data: { invite: null } }).catch(() => {});
+}
+
 async function accept(code, go) {
   await q(sb.rpc('accept_invite', { p_code: code }));
+  clearPendingInvite();
   await loadContext();
   toast('Convite aceito! Bem-vindo(a).');
   go('/');
@@ -19,6 +31,7 @@ export default async function render(el, { params, opt, go }) {
     const code = decodeURIComponent(params[0] ?? '');
     if (!S.user) {
       try { sessionStorage.setItem('lo.next', '/convite/' + encodeURIComponent(code)); } catch { /* ignore */ }
+      try { localStorage.setItem('lo.invite', code); } catch { /* ignore */ }
       el.innerHTML = toStr(html`<div class="auth"><div class="logo">LouvOrganize</div><div class="card">
         <h1>Você recebeu um convite</h1>
         <p>Para aceitar, entre na sua conta ou crie uma (leva um minuto). Depois disso o convite é aceito automaticamente.</p>
@@ -27,10 +40,15 @@ export default async function render(el, { params, opt, go }) {
     }
     el.innerHTML = toStr(html`<div class="auth"><div class="card"><h1>Aceitando convite…</h1><div id="e"></div></div></div>`);
     try { await accept(code, go); } catch (err) {
+      clearPendingInvite();   // evita ficar preso num convite vencido/usado
       el.querySelector('#e').innerHTML = `<div class="alert bad">${esc(err.message)}</div><p><a class="btn" href="#/comecar">Voltar</a></p>`;
     }
     return;
   }
+
+  // chegou aqui com um convite pendente (ex.: confirmou o e-mail em outra aba)? aceita direto.
+  const pend = pendingInvite();
+  if (pend) return go('/convite/' + encodeURIComponent(pend));
 
   let savedName = '';
   try { savedName = sessionStorage.getItem('lo.name') || ''; } catch { /* ignore */ }
@@ -38,7 +56,12 @@ export default async function render(el, { params, opt, go }) {
 
   el.innerHTML = toStr(html`<div class="auth" style="max-width:560px">
     <div class="logo">LouvOrganize</div>
-    <div class="card"><h1>Criar uma igreja</h1>
+    <div class="card"><h1>Foi convidado pelo líder?</h1>
+      <p class="muted">Abra de novo o link do convite que você recebeu, ou cole aqui o código. <strong>Não crie uma igreja nova.</strong></p>
+      <div id="e2"></div>
+      <form id="inv" novalidate><div class="row"><input id="code" aria-label="Código de convite" required autocomplete="off" placeholder="Cole o código" style="flex:1 1 200px">
+      <button class="btn primary" type="submit">Entrar com o convite</button></div></form></div>
+    <div class="card"><h2>Criar uma igreja</h2>
       <p class="muted">Você será o proprietário. Depois é só cadastrar a equipe.</p>
       <div id="e1"></div>
       <form id="new" novalidate>
@@ -47,12 +70,8 @@ export default async function render(el, { params, opt, go }) {
           <span class="hint">Aparecerá como …/#/i/<strong id="sl">sua-igreja</strong>. Não poderá ser alterado depois.</span></label>
           <input id="slug" name="slug" required pattern="[a-z0-9][a-z0-9\\-]{1,38}[a-z0-9]" minlength="3" maxlength="40"></div>
         <div class="field"><label for="mname">Seu nome</label><input id="mname" name="mname" required minlength="3" maxlength="120" value="${name}"></div>
-        <button class="btn primary" type="submit">Criar igreja</button>
+        <button class="btn" type="submit">Criar igreja</button>
       </form></div>
-    <div class="card"><h2>Tenho um código de convite</h2>
-      <div id="e2"></div>
-      <form id="inv" novalidate><div class="row"><input id="code" aria-label="Código de convite" required autocomplete="off" placeholder="Cole o código" style="flex:1 1 200px">
-      <button class="btn" type="submit">Entrar com o convite</button></div></form></div>
     <p class="center small"><button class="btn link" id="out">Sair da conta</button></p>
   </div>`);
 
