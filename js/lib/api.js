@@ -121,3 +121,14 @@ export async function lookups() {
     songById: new Map(songs.map((s) => [s.id, s])),
   };
 }
+
+// ── vestimenta ──────────────────────────────────────────────────────────────
+export const getDressCodes = () => cached('dress', () =>
+  q(sb.from('dress_codes').select('*').eq('church_id', S.church.id).order('position').order('name')));
+/** Semanas escaladas entre dois domingos (inclusive), já com o padrão atual: Map(week_start → código). */
+export async function getDressWeeks(from, to) {
+  const [codes, weeks] = await Promise.all([getDressCodes(),
+    q(sb.from('dress_weeks').select('week_start, dress_code_id').eq('church_id', S.church.id).gte('week_start', from).lte('week_start', to))]);
+  const byId = new Map(codes.map((c) => [c.id, c]));
+  return new Map(weeks.filter((w) => byId.has(w.dress_code_id)).map((w) => [w.week_start, byId.get(w.dress_code_id)]));
+}

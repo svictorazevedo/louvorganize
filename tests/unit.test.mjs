@@ -7,6 +7,7 @@ import {
 } from '../js/lib/time.js';
 import { parseCsv, toCsv } from '../js/lib/csv.js';
 import { buildIcs } from '../js/lib/ics.js';
+import { weekStartOf, weekLabel, outfits, colorGroups, figureSvg, cleanColors } from '../js/lib/dress.js';
 
 test('html`` escapa tudo que é interpolado (XSS)', () => {
   const evil = `<img src=x onerror=alert(1)>"'&`;
@@ -85,3 +86,38 @@ test('ICS: estrutura mínima e escape', () => {
   assert.match(s, /SUMMARY:Culto\\; Equipe A\\, vocal/); assert.match(s, /END:VCALENDAR\r\n$/);
 });
 test('esc', () => assert.equal(esc(`<a href="x">'&</a>`), '&lt;a href=&quot;x&quot;&gt;&#39;&amp;&lt;/a&gt;'));
+
+const VINHO = [{ hex: '#000000', name: 'Preto' }, { hex: '#722F37', name: 'Wine Plum' }, { hex: '#551B21', name: 'Night Bordeaux' }, { hex: '#3F1419', name: 'Rich Mahogany' }];
+test('vestimenta: semana começa no domingo', () => {
+  assert.equal(weekStartOf('2026-11-11'), '2026-11-08');
+  assert.equal(weekStartOf('2026-11-08'), '2026-11-08');
+  assert.equal(weekStartOf('2026-11-14'), '2026-11-08');
+  assert.equal(weekLabel('2026-11-08'), '08/11 a 14/11');
+});
+test('vestimenta: grupos separam neutros dos tons (preto | vinhos)', () => {
+  const g = colorGroups(cleanColors(VINHO));
+  assert.equal(g.length, 2);
+  assert.deepEqual(g[0].map((c) => c.hex), ['#000000']);
+  assert.equal(g[1].length, 3);
+});
+test('vestimenta: 3 bonequinhos, calça e camisa de grupos diferentes, estável por semana', () => {
+  for (const seed of ['2026-11-08', '2026-11-15', '2026-11-22', 'x']) {
+    const o = outfits(VINHO, seed);
+    assert.equal(o.length, 3);
+    o.forEach((f) => assert.notEqual(f.pants.hex === '#000000', f.top.hex === '#000000'));
+    assert.deepEqual(outfits(VINHO, seed), o);
+  }
+  const black = outfits([{ hex: '#000000' }], 'w');
+  black.forEach((f) => ['pants', 'top', 'shoes'].forEach((k) => assert.equal(f[k].hex, '#000000')));
+});
+test('vestimenta: trocar as cores do padrão troca as roupas', () => {
+  const a = outfits(VINHO, 'w').map((f) => f.top.hex).join();
+  const b = outfits([{ hex: '#000000' }, { hex: '#28587A' }], 'w').map((f) => f.top.hex).join();
+  assert.notEqual(a, b);
+  assert.ok(b.includes('#28587A') || outfits([{ hex: '#000000' }, { hex: '#28587A' }], 'w').some((f) => f.pants.hex === '#28587A'));
+});
+test('vestimenta: SVG escapa nomes de cor e ignora hex inválido', () => {
+  const svg = figureSvg(outfits([{ hex: '#112233', name: '<script>' }, { hex: 'vermelho' }], 's')[0]);
+  assert.ok(!svg.includes('<script>'));
+  assert.equal(cleanColors([{ hex: 'vermelho' }, { hex: '#abcdef' }, { hex: '#ABCDEF' }]).length, 1);
+});

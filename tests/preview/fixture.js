@@ -1,7 +1,9 @@
+import { dressFixture } from '../smoke/dress-fixture.mjs';
 // Dados fictícios para a prévia visual (mesmos do teste de fumaça).
 // ── dados falsos ─────────────────────────────────────────────────────────────
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const C = id(1), U = id(2);
+const DF = dressFixture(C, id);
 const church = { id: C, name: 'Igreja Teste', slug: 'teste', timezone: 'America/Cuiaba', public_mode: 'link', show_setlist_publicly: true };
 const inDays = (n, h = 23) => new Date(Date.now() + n * 864e5).toISOString().replace(/T\d\d/, `T${h}`);
 const roles = [
@@ -25,7 +27,7 @@ const roster = [
 ];
 const pub = { church: { name: 'Igreja Teste', timezone: 'America/Cuiaba', public_mode: 'link' },
   events: [{ id: ev1.id, kind: 'evento', title: 'Batismo no Rio', starts_at: ev1.starts_at, location: 'Rio', team: 'Equipe A', team_color: '#2F5D62', roster: [{ name: 'Ana Souza', role: 'Vocal' }], setlist: [{ title: 'Grande é o Senhor', key: 'G', moment: 'abertura' }] }],
-  teams: [{ name: 'Equipe A', color: '#2F5D62', members: [{ name: 'Ana Souza', role: 'Vocal' }] }] };
+  teams: [{ name: 'Equipe A', color: '#2F5D62', members: [{ name: 'Ana Souza', role: 'Vocal' }] }], dress: DF.pub };
 
 globalThis.__DB = {
   writes: [], rpcs: [],
@@ -33,6 +35,7 @@ globalThis.__DB = {
   tables: {
     memberships: [{ id: id(3), church_id: C, user_id: U, role: 'owner', churches: church }],
     members, roles, teams, songs, events: [ev1, ev2],
+    dress_codes: DF.codes, dress_weeks: DF.weeks,
     assignments: [asg(60, id(20), id(10), 'pending'), asg(61, id(21), id(11), 'declined', { decline_reason: 'Viagem', suggested_substitute_id: id(20) })],
     setlist_items: [{ song_id: id(40), position: 1, key_override: 'A', bpm_override: null, moment: 'abertura', event_id: ev1.id, events: { starts_at: inDays(-3), status: 'closed' } }],
     member_contacts: [{ member_id: id(20), church_id: C, phone: '+5565999990001', email: 'ana@x.com', notes: 'obs' }],

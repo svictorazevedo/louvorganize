@@ -30,6 +30,7 @@ const ROUTES = [
   [/^\/integrantes\/([0-9a-f-]{36})$/, 'members', { manager: true }],
   [/^\/funcoes$/, 'roles', { admin: true }],
   [/^\/musicas$/, 'songs'],
+  [/^\/vestimentas$/, 'dress'],
   [/^\/relatorios$/, 'reports', { manager: true }],
   [/^\/configuracoes$/, 'settings', { admin: true }],
 ];
@@ -44,6 +45,7 @@ const NAV = [
   ['/integrantes', 'Integrantes', isManager, 'user', 'Pessoas'],
   ['/funcoes', 'Funções', isAdmin, 'tag', 'Funções'],
   ['/musicas', 'Músicas', () => true, 'music', 'Músicas'],
+  ['/vestimentas', 'Vestimenta', () => true, 'shirt', 'Roupas'],
   ['/relatorios', 'Relatórios', isManager, 'chart', 'Relatórios'],
   ['/configuracoes', 'Configurações', isAdmin, 'settings', 'Ajustes'],
 ];

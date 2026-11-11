@@ -311,13 +311,53 @@ th[aria-sort="descending"] button::after { content: "↓"; }
 .ev .t { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; display: block; font-weight: 560; }
 .ev.cancelled { opacity: .55; text-decoration: line-through; }
 .ev.draft { background: repeating-linear-gradient(-45deg, var(--surface-2), var(--surface-2) 6px, var(--surface) 6px, var(--surface) 12px); }
-@media (max-width: 720px) { .cal-wrap-month { display: none !important; } }
 @media (min-width: 721px) { .cal-wrap-list-only { display: none; } }
+/* celular: grade do mês compacta (só o horário em cada escala; toque abre os detalhes) */
+@media (max-width: 720px) {
+  .cal-wrap-month { margin-bottom: 1rem; }
+  .cal .dow { padding: .4rem 0; font-size: .62rem; letter-spacing: .02em; }
+  .cal .day { min-height: 62px; padding: .2rem; }
+  .cal .num { min-width: 1.35rem; height: 1.35rem; font-size: .72rem; margin-bottom: .1rem; }
+  .cal .ev { padding: .2rem .1rem; border-left-width: 2px; border-radius: 4px; margin-bottom: .15rem; text-align: center; min-height: 22px; }
+  .cal .ev b { font-size: 0; letter-spacing: 0; }
+  .cal .ev b .tm { font-size: .64rem; color: var(--ink); text-transform: none; }
+  .cal .ev .t { display: none; }
+}
+.filters .view-sw { flex: 0 0 auto; margin: 0; }
+.filters .view-sw button { white-space: nowrap; }
 .pop { position: fixed; z-index: 60; max-width: 320px; background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: .8rem .9rem;
   box-shadow: var(--shadow-lg); font-size: .85rem; pointer-events: none; animation: pop-in .12s var(--ease); }
 .pop h4 { margin: 0 0 .2rem; font-size: .95rem; }
 .pop ul { margin: .35rem 0 0; padding-left: 1rem; }
 @keyframes pop-in { from { opacity: 0; transform: translateY(4px) scale(.98); } }
+
+/* vestimenta */
+.swatches { display: inline-flex; flex-wrap: wrap; gap: 4px; vertical-align: middle; }
+.swatches .sw { width: 18px; height: 18px; border-radius: 6px; box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--ink) 22%, transparent); }
+.swatches.labeled { display: flex; gap: 6px; margin: .5rem 0 .25rem; }
+.swatches.labeled .sw { width: auto; min-width: 46px; height: 44px; border-radius: 8px; display: flex; align-items: flex-end; padding: 3px 5px; }
+.swatches.labeled .sw small { font-size: .6rem; font-weight: 650; line-height: 1.1; color: #fff; text-shadow: 0 1px 2px rgba(0,0,0,.8); max-width: 72px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.swatches.labeled .sw.light small { color: #141A2E; text-shadow: none; }
+.dress-chip { background: var(--surface-2); color: var(--ink); border: 1px solid var(--line); }
+.dress-chip .swatches { gap: 2px; }
+.dress-chip .sw { width: 12px; height: 12px; border-radius: 4px; }
+.eyebrow { font-size: .74rem; text-transform: uppercase; letter-spacing: .07em; color: var(--muted); font-weight: 700; }
+.figs { --fig-line: rgba(20,26,46,.42); display: flex; justify-content: center; gap: clamp(.5rem, 3vw, 2rem); flex-wrap: nowrap; margin-top: .9rem; padding: .9rem .5rem .6rem;
+  border-radius: var(--radius-sm); background: radial-gradient(ellipse at 50% 100%, color-mix(in srgb, var(--brand) 9%, var(--surface-2)) 0%, var(--surface-2) 70%); }
+.figs figure { margin: 0; display: flex; flex-direction: column; align-items: center; max-width: 150px; flex: 1 1 0; min-width: 0; }
+.figs figcaption { font-size: .68rem; color: var(--muted); text-align: center; line-height: 1.3; margin-top: .35rem; }
+.fig { display: block; overflow: visible; filter: drop-shadow(0 6px 6px rgba(0,0,0,.12)); }
+.fig .o, .fig .h { stroke: var(--fig-line); stroke-width: 1.1; stroke-linejoin: round; }
+.fig .h { stroke-width: .8; }
+.dress-code .figs figcaption { display: none; }
+.dress-weeks li.is-now { background: var(--brand-tint); margin: 0 -1rem; padding-left: 1rem; padding-right: 1rem; border-radius: 10px; }
+.dress-weeks select { min-width: 190px; }
+.color-row { display: flex; gap: .5rem; align-items: center; margin-bottom: .45rem; }
+.color-row input[type=color] { width: 52px; height: 42px; padding: 3px; flex: 0 0 auto; cursor: pointer; }
+.color-row input[name=cname] { flex: 1 1 auto; min-width: 0; }
+dialog .figs figcaption { font-size: .64rem; }
+:root[data-theme="dark"] .figs { --fig-line: rgba(233,236,245,.38); }
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) .figs { --fig-line: rgba(233,236,245,.38); } }
 
 /* diálogos: cartão no computador, folha que sobe de baixo no celular */
 dialog { border: 0; border-radius: 18px; padding: 0; max-width: min(560px, calc(100vw - 24px)); width: 100%; background: var(--surface); color: var(--ink); box-shadow: var(--shadow-lg); }

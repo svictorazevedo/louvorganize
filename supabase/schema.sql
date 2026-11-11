@@ -226,6 +226,35 @@ create table audit_log (
 );
 create index on audit_log (church_id, created_at desc);
 
+-- ─── Vestimenta (padrões de cores e escala semanal) ────────────────────────
+-- colors = [{"hex":"#000000","name":"Preto"}, ...] (1 a 8 cores). A escala aponta para o
+-- padrão: se as cores do padrão mudarem, todas as semanas escaladas com ele mudam junto.
+create function dress_colors_ok(p jsonb) returns boolean
+language sql immutable as
+$fn$ select jsonb_typeof(p) = 'array' and jsonb_array_length(p) between 1 and 8
+       and not exists (select 1 from jsonb_array_elements(p) x
+                        where jsonb_typeof(x) <> 'object' or coalesce(x->>'hex', '') !~ '^#[0-9A-Fa-f]{6}$'
+                           or char_length(coalesce(x->>'name', '')) > 40) $fn$;
+
+create table dress_codes (
+  id            uuid primary key default gen_random_uuid(),
+  church_id     uuid not null references churches(id) on delete cascade,
+  name          text not null check (char_length(btrim(name)) between 2 and 60),
+  colors        jsonb not null constraint dress_colors_check check (dress_colors_ok(colors)),
+  position      int not null default 0,
+  created_at    timestamptz not null default now(),
+  unique (id, church_id)
+);
+create unique index dress_codes_name_key on dress_codes (church_id, lower(name));
+
+create table dress_weeks (    -- semana começa no domingo (igual ao calendário)
+  church_id     uuid not null references churches(id) on delete cascade,
+  week_start    date not null constraint dress_week_sunday check (extract(dow from week_start) = 0),
+  dress_code_id uuid not null,
+  primary key (church_id, week_start),
+  foreign key (dress_code_id, church_id) references dress_codes(id, church_id) on delete cascade
+);
+
 -- ============================================================================
 -- Funções auxiliares de autorização (usadas pelas políticas de RLS)
 -- ============================================================================
@@ -388,6 +417,8 @@ alter table songs             enable row level security;
 alter table setlist_items     enable row level security;
 alter table invites           enable row level security;
 alter table audit_log         enable row level security;
+alter table dress_codes       enable row level security;
+alter table dress_weeks       enable row level security;
 
 -- churches (criação só pela função create_church)
 create policy churches_read on churches for select using (id in (select current_church_ids()));
@@ -455,6 +486,12 @@ create policy invites_read on invites for select using (is_admin(church_id));
 create policy invites_del  on invites for delete using (is_admin(church_id));
 create policy audit_read   on audit_log for select using (is_admin(church_id));
 
+-- vestimenta: todos da igreja veem; admin cadastra padrões; líder/admin escala as semanas
+create policy dress_codes_read  on dress_codes for select using (church_id in (select current_church_ids()));
+create policy dress_codes_write on dress_codes for all using (is_admin(church_id)) with check (is_admin(church_id));
+create policy dress_weeks_read  on dress_weeks for select using (church_id in (select current_church_ids()));
+create policy dress_weeks_write on dress_weeks for all using (is_manager(church_id)) with check (is_manager(church_id));
+
 -- ============================================================================
 -- Funções de negócio (RPC) — chamadas pelo aplicativo
 -- ============================================================================
@@ -486,7 +523,27 @@ begin
     (c, 'Percussão',           'instrumento', '#8A5A44', false),
     (c, 'Som',                 'tecnica',     '#5B5F66', false),
     (c, 'Projeção/Multimídia', 'tecnica',     '#6B4C9A', false);
+  perform seed_dress_codes(c);
   return c;
+end $fn$;
+
+-- Padrões de vestimenta iniciais (V1 a V10). Não duplica se a igreja já tiver algum padrão.
+create function seed_dress_codes(p_church uuid) returns void
+language plpgsql security definer set search_path = public as
+$fn$
+begin
+  if exists (select 1 from dress_codes where church_id = p_church) then return; end if;
+  insert into dress_codes (church_id, position, name, colors) values
+    (p_church, 1, 'All Black', '[{"hex":"#000000","name":"Preto"}]'),
+    (p_church, 2, 'Preto e Branco', '[{"hex":"#000000","name":"Preto"},{"hex":"#FFFFFF","name":"Branco"}]'),
+    (p_church, 3, 'Bege e Verde', '[{"hex":"#DBCDB5","name":"Pale Oak"},{"hex":"#E8E0D0","name":"Bone"},{"hex":"#DED7C2","name":"Bone"},{"hex":"#516B4B","name":"Hunter Green"},{"hex":"#334E2D","name":"Dark Spruce"}]'),
+    (p_church, 4, 'Bege e Marrom', '[{"hex":"#DBCDB5","name":"Pale Oak"},{"hex":"#E8E0D0","name":"Bone"},{"hex":"#DED7C2","name":"Bone"},{"hex":"#4D3B34","name":"Deep Mocha"},{"hex":"#3A2F2F","name":"Deep Mocha"}]'),
+    (p_church, 5, 'Preto e Verde', '[{"hex":"#000000","name":"Preto"},{"hex":"#293727","name":"Evergreen"},{"hex":"#72956E","name":"Sage Green"},{"hex":"#516B4B","name":"Hunter Green"},{"hex":"#334E2D","name":"Dark Spruce"}]'),
+    (p_church, 6, 'Branco e Bege', '[{"hex":"#FFFFFF","name":"Branco"},{"hex":"#EFE5D9","name":"Linen"},{"hex":"#DBCDB5","name":"Pale Oak"},{"hex":"#E8E0D0","name":"Bone"},{"hex":"#DED7C2","name":"Bone"}]'),
+    (p_church, 7, 'Preto, Marrom e Bege', '[{"hex":"#000000","name":"Preto"},{"hex":"#281F12","name":"Dark Coffee"},{"hex":"#433030","name":"Deep Mocha"},{"hex":"#4D3B34","name":"Deep Mocha"},{"hex":"#857C62","name":"Grey Olive"}]'),
+    (p_church, 8, 'Branco e Azul', '[{"hex":"#FFFFFF","name":"Branco"},{"hex":"#ACDDFF","name":"Icy Blue"},{"hex":"#28587A","name":"Baltic Blue"},{"hex":"#436781","name":"Blue Slate"},{"hex":"#16344B","name":"Deep Space Blue"}]'),
+    (p_church, 9, 'Preto e Vinho', '[{"hex":"#000000","name":"Preto"},{"hex":"#722F37","name":"Wine Plum"},{"hex":"#551B21","name":"Night Bordeaux"},{"hex":"#3F1419","name":"Rich Mahogany"}]'),
+    (p_church, 10, 'Branco e Cinza', '[{"hex":"#FFFFFF","name":"Branco"},{"hex":"#C0C0C0","name":"Silver"},{"hex":"#757575","name":"Grey"},{"hex":"#575757","name":"Charcoal"},{"hex":"#ECECEC","name":"Platinum"}]');
 end $fn$;
 
 -- Convites (RF-206/207): o código só existe na resposta; no banco fica o hash
@@ -951,7 +1008,12 @@ begin
           select jsonb_agg(jsonb_build_object('name', m.full_name, 'role', r.name) order by m.full_name)
             from team_members tm join members m on m.id = tm.member_id and m.deleted_at is null
             join roles r on r.id = tm.role_id where tm.team_id = t.id), '[]'::jsonb)) order by t.name)
-        from teams t where t.church_id = c.id and t.deleted_at is null), '[]'::jsonb)
+        from teams t where t.church_id = c.id and t.deleted_at is null), '[]'::jsonb),
+    'dress', coalesce((
+      select jsonb_agg(jsonb_build_object('week_start', w.week_start, 'name', d.name, 'colors', d.colors) order by w.week_start)
+        from dress_weeks w join dress_codes d on d.id = w.dress_code_id
+       where w.church_id = c.id
+         and w.week_start between (now() at time zone c.timezone)::date - 42 and (now() at time zone c.timezone)::date + 120), '[]'::jsonb)
   ) into res;
   return res;
 end $fn$;
@@ -981,7 +1043,7 @@ grant execute on function
   retire_role(uuid, uuid), save_team(uuid, uuid, text, text, uuid, jsonb), archive_team(uuid),
   apply_team(uuid, uuid), publish_event(uuid), cancel_event(uuid), substitutes(uuid),
   respond_assignment(uuid, text, text, uuid), replace_assignment(uuid, uuid), mark_attendance(uuid, boolean),
-  save_setlist(uuid, jsonb), refresh_states(uuid), event_roster(uuid[]), member_loads(uuid)
+  save_setlist(uuid, jsonb), refresh_states(uuid), event_roster(uuid[]), member_loads(uuid), dress_colors_ok(jsonb)
   to authenticated;
 
 grant execute on function public_church(text) to anon, authenticated;

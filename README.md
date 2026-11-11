@@ -27,6 +27,11 @@ Sem build, sem Node para rodar: são arquivos HTML/CSS/JS puros.
    Sem isso, os links de confirmação de e-mail e de recuperação de senha não voltam para o site.
 6. **Authentication › Providers › Email**: decida sobre “Confirm email” (veja *Limites do plano grátis*).
 
+### Atualizar um banco que já existe
+Quando uma versão nova trouxer mudança no banco, vem junto um arquivo `supabase/migracao-<versão>-*.sql`.
+Rode-o **uma vez** no *SQL Editor* (cole tudo › Run), antes de publicar o site novo. Banco criado do zero com o `schema.sql` atual não precisa.
+- **1.2.0**: [`supabase/migracao-1.2.0-vestimentas.sql`](supabase/migracao-1.2.0-vestimentas.sql) — padrões de vestimenta e escala semanal (já cadastra os 10 padrões iniciais em todas as igrejas).
+
 ## 2. Publicar o site (GitHub Pages)
 
 1. Suba esta pasta para um repositório no GitHub (público, para o Pages ser grátis).
@@ -87,6 +92,7 @@ js/main.js                                  roteador por hash e moldura
 js/lib/      api.js (Supabase) · ui.js (html seguro, diálogos) · time.js (fuso) · shared.js · csv.js · ics.js
 js/pages/    uma tela por arquivo
 supabase/schema.sql                         tabelas, RLS, triggers e funções (a fonte de verdade das regras)
+supabase/migracao-*.sql                     atualizações para bancos já criados (rodar uma vez, em ordem)
 tests/                                      SQL, unitários e de fumaça
 louvorganize-spec.md                        especificação completa do produto (fica só no seu computador, não vai ao GitHub)
 ```

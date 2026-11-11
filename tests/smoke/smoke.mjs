@@ -1,6 +1,7 @@
 // Teste de fumaça: monta cada tela com dados falsos num DOM simulado (jsdom).
 // Rodar: node --import ./tests/smoke/register.mjs tests/smoke/smoke.mjs   (precisa de: npm i jsdom)
 import { JSDOM } from 'jsdom';
+import { dressFixture } from './dress-fixture.mjs';
 
 const dom = new JSDOM('<!doctype html><html><body><div id="app"></div></body></html>', { url: 'https://exemplo.github.io/louvorganize/', pretendToBeVisual: true });
 const w = dom.window;
@@ -14,6 +15,7 @@ Object.defineProperty(globalThis, 'navigator', { value: w.navigator, configurabl
 // ── dados falsos ─────────────────────────────────────────────────────────────
 const id = (n) => `00000000-0000-4000-8000-${String(n).padStart(12, '0')}`;
 const C = id(1), U = id(2);
+const DF = dressFixture(C, id);
 const church = { id: C, name: 'Igreja Teste', slug: 'teste', timezone: 'America/Cuiaba', public_mode: 'link', show_setlist_publicly: true };
 const inDays = (n, h = 23) => new Date(Date.now() + n * 864e5).toISOString().replace(/T\d\d/, `T${h}`);
 const roles = [
@@ -37,7 +39,7 @@ const roster = [
 ];
 const pub = { church: { name: 'Igreja Teste', timezone: 'America/Cuiaba', public_mode: 'link' },
   events: [{ id: ev1.id, kind: 'evento', title: 'Batismo no Rio', starts_at: ev1.starts_at, location: 'Rio', team: 'Equipe A', team_color: '#2F5D62', roster: [{ name: 'Ana Souza', role: 'Vocal' }], setlist: [{ title: 'Grande é o Senhor', key: 'G', moment: 'abertura' }] }],
-  teams: [{ name: 'Equipe A', color: '#2F5D62', members: [{ name: 'Ana Souza', role: 'Vocal' }] }] };
+  teams: [{ name: 'Equipe A', color: '#2F5D62', members: [{ name: 'Ana Souza', role: 'Vocal' }] }], dress: DF.pub };
 
 globalThis.__DB = {
   writes: [], rpcs: [],
@@ -45,6 +47,7 @@ globalThis.__DB = {
   tables: {
     memberships: [{ id: id(3), church_id: C, user_id: U, role: 'owner', churches: church }],
     members, roles, teams, songs, events: [ev1, ev2],
+    dress_codes: DF.codes, dress_weeks: DF.weeks,
     assignments: [asg(60, id(20), id(10), 'pending'), asg(61, id(21), id(11), 'declined', { decline_reason: 'Viagem', suggested_substitute_id: id(20) })],
     setlist_items: [{ song_id: id(40), position: 1, key_override: 'A', bpm_override: null, moment: 'abertura', event_id: ev1.id, events: { starts_at: inDays(-3), status: 'closed' } }],
     member_contacts: [{ member_id: id(20), church_id: C, phone: '+5565999990001', email: 'ana@x.com', notes: 'obs' }],
@@ -88,7 +91,7 @@ const pages = [
   ['dashboard', {}], ['calendar', {}], ['calendar', { query: { v: 'list' } }], ['events', {}], ['event-edit (nova)', { page: 'event-edit' }],
   ['event-edit (existente)', { page: 'event-edit', ...E }], ['event-edit (rascunho)', { page: 'event-edit', params: [ev2.id] }],
   ['teams', {}], ['teams (ver)', { page: 'teams', params: [id(30)] }], ['team-edit (nova)', { page: 'team-edit' }], ['team-edit (editar)', { page: 'team-edit', params: [id(30)] }],
-  ['members', {}], ['members (perfil)', { page: 'members', params: [id(20)] }], ['roles', {}], ['songs', {}], ['reports', {}], ['settings', {}], ['mine', {}],
+  ['members', {}], ['members (perfil)', { page: 'members', params: [id(20)] }], ['roles', {}], ['songs', {}], ['dress', {}], ['reports', {}], ['settings', {}], ['mine', {}],
   ['public', { params: ['teste'] }], ['public (equipes)', { page: 'public', params: ['teste'], query: { t: 'teams' } }], ['public (escalas)', { page: 'public', params: ['teste'], query: { t: 'escalas' } }],
   ['start', { opt: {} }], ['auth (login)', { page: 'auth', opt: { mode: 'login' } }], ['auth (cadastro)', { page: 'auth', opt: { mode: 'signup' } }], ['auth (recuperar)', { page: 'auth', opt: { mode: 'recover' } }], ['auth (nova senha)', { page: 'auth', opt: { mode: 'newpass' } }],
 ];
@@ -171,6 +174,30 @@ await check('calendário: abrir escala mostra elenco', async () => {
   click(el, '[data-act="open"]'); await settle();
   if (!document.querySelector('dialog[open]')?.textContent.includes('Vocal')) throw new Error('sem elenco');
   document.querySelectorAll('dialog').forEach((d) => d.close());
+});
+
+await check('vestimenta: 3 bonequinhos no início e na página pública', async () => {
+  for (const [page, cfg] of [['dashboard', {}], ['public', { params: ['teste'] }]]) {
+    const { el } = await mount(page, cfg);
+    const card = el.querySelector('.dress-card');
+    if (!card || !card.textContent.includes('Preto e Vinho')) throw new Error(page + ': sem cartão da semana');
+    if (card.querySelectorAll('svg.fig').length !== 3) throw new Error(page + ': não tem 3 bonequinhos');
+  }
+});
+await check('vestimenta: escala semanal e editor de cores com prévia', async () => {
+  const { el } = await mount('dress');
+  if (el.querySelectorAll('select[data-act="set"]').length !== 12) throw new Error('faltam semanas');
+  click(el, '[data-act="edit"]'); await settle();
+  const d = document.querySelector('dialog[open]');
+  if (!d || d.querySelectorAll('.color-row').length < 1 || d.querySelectorAll('#prev svg.fig').length !== 3) throw new Error('editor/prévia');
+  d.querySelector('[data-add]').click();
+  if (d.querySelectorAll('.color-row').length < 2) throw new Error('não adicionou cor');
+  document.querySelectorAll('dialog').forEach((x) => x.close());
+});
+await check('calendário: botão Mês disponível também no celular', async () => {
+  const { el } = await mount('calendar', { query: { v: 'month' } });
+  const b = el.querySelector('[data-act="view"][data-v="month"]');
+  if (!b || b.closest('.cal-wrap-month')) throw new Error('botão Mês escondido');
 });
 
 // ── o roteador completo (main.js) ────────────────────────────────────────────

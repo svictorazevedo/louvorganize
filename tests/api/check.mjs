@@ -131,6 +131,23 @@ await check('isolamento via API: Bia (Igreja B) não vê nada da A', async () =>
     const r = await ok(b.from(t).select('church_id').eq('church_id', C)); must(r.length === 0, `${t}: ${r.length}`);
   }
 });
+await check('vestimenta: padrões, upsert da semana, rodízio, editar cores e página pública', async () => {
+  const codes = await ok(ana.from('dress_codes').select('*').eq('church_id', C).order('position').order('name'));
+  must(codes.length === 10, `${codes.length} padrões`);
+  const sun = (n) => { const d = new Date(); d.setUTCDate(d.getUTCDate() - d.getUTCDay() + 7 * n); return d.toISOString().slice(0, 10); };
+  await ok(ana.from('dress_weeks').upsert({ church_id: C, week_start: sun(5), dress_code_id: codes[0].id }, { onConflict: 'church_id,week_start' }));
+  await ok(ana.from('dress_weeks').upsert({ church_id: C, week_start: sun(5), dress_code_id: codes[1].id }, { onConflict: 'church_id,week_start' }));
+  await ok(as(CAIO).from('dress_weeks').upsert([6, 7].map((n, i) => ({ church_id: C, week_start: sun(n), dress_code_id: codes[i].id })), { onConflict: 'church_id,week_start' }));
+  const w = await ok(ana.from('dress_weeks').select('week_start, dress_code_id').eq('church_id', C).gte('week_start', sun(5)).lte('week_start', sun(7)));
+  must(w.length === 3 && w.find((x) => x.week_start === sun(5)).dress_code_id === codes[1].id, JSON.stringify(w));
+  await ok(ana.from('dress_weeks').delete().eq('church_id', C).eq('week_start', sun(7)));
+  await ok(ana.from('dress_codes').update({ name: codes[1].name, colors: [{ hex: '#ABCDEF', name: 'Teste' }] }).eq('id', codes[1].id));
+  const { error } = await as(CAIO).from('dress_codes').insert({ church_id: C, name: 'Do líder', colors: [{ hex: '#000000' }] });
+  must(error, 'líder criou padrão');
+  const pub = await ok(as(null).rpc('public_church', { p_slug: 'igreja-a' }));
+  must(pub.dress.some((d) => d.colors[0].hex === '#ABCDEF'), 'público sem a cor nova');
+  return `${w.length} semanas`;
+});
 await check('anon não lê tabelas', async () => { const { error } = await as(null).from('members').select('*'); must(error, 'anon leu members'); });
 
 console.log(fails ? `\n${fails} FALHA(S)` : '\nTODAS AS CONSULTAS DO APP FUNCIONAM NO POSTGREST');

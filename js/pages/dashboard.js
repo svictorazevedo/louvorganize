@@ -1,7 +1,8 @@
 // Início: o que exige ação agora (§12 — tela mais importante para o líder).
-import { sb, q, S, tz, isManager, lookups } from '../lib/api.js';
+import { sb, q, S, tz, isManager, lookups, getDressWeeks } from '../lib/api.js';
 import { html, toStr, actions, empty, statusChip, coverage, coverageBar, eventChip, toast, icon } from '../lib/ui.js';
-import { toLocalParts, fmtWeekday, fmtTime } from '../lib/time.js';
+import { toLocalParts, fmtWeekday, fmtTime, todayIn, addDays } from '../lib/time.js';
+import { weekStartOf, dressCard, dressChip } from '../lib/dress.js';
 import { evName, evWhen, loadRoster, confirmAssignment, declineFlow, substituteFlow } from '../lib/shared.js';
 
 export default async function render(el) {
@@ -24,7 +25,11 @@ export default async function render(el) {
   ]);
   mine.sort((a, b) => a.events.starts_at.localeCompare(b.events.starts_at));
   problems.sort((a, b) => a.events.starts_at.localeCompare(b.events.starts_at));
-  const rosters = await loadRoster(upcoming.map((e) => e.id));
+  const week = weekStartOf(todayIn(tz())); const nextWeek = addDays(week, 7);
+  const [rosters, dress] = await Promise.all([loadRoster(upcoming.map((e) => e.id)), getDressWeeks(week, nextWeek).catch(() => new Map())]);
+  const dressHtml = dress.size || mgr ? dressCard(dress.get(week) ?? null, week, {
+    manage: html`<div class="actions">${dress.get(nextWeek) ? html`<span class="small muted">Próxima: ${dressChip(dress.get(nextWeek))}</span>` : ''}
+      <a class="btn sm" href="#/vestimentas">${mgr ? 'Escalar vestimenta' : 'Ver semanas'}</a></div>` }) : '';
   const noSetlist = upcoming.filter((e) => e.status === 'published' && (e.setlist_items?.[0]?.count ?? 0) === 0);
   const memberName = (id) => L.memberById.get(id)?.full_name ?? '—';
   const roleName = (id) => L.roleById.get(id)?.name ?? '—';
@@ -47,6 +52,8 @@ export default async function render(el) {
       <a class="stat" href="#/escalas"><span class="n">${upcoming.filter((e) => e.status === 'published').length}</span><span class="l">${icon('calendar', 16)} Próximas escalas</span></a>
       ${mgr && noSetlist.length ? html`<button type="button" class="stat" data-act="scroll" data-to="h-noset"><span class="n">${noSetlist.length}</span><span class="l">${icon('music', 16)} Sem repertório</span></button>` : ''}
     </div>
+
+    ${dressHtml}
 
     ${firstRun ? html`<div class="card"><h2>Vamos começar?</h2>
       <p>Siga esta ordem — cada passo depende do anterior:</p>

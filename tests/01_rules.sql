@@ -194,6 +194,31 @@ select t.eq('setlist idempotente', (select count(*)::text from setlist_items whe
 select t.expect_fail(format($$update memberships set role = 'member' where church_id = %L and user_id = 'a0000000-0000-0000-0000-00000000000a'$$, t.id('chA')), 'ao menos um proprietário');
 select t.expect_fail(format($$delete from memberships where church_id = %L and user_id = 'a0000000-0000-0000-0000-00000000000a'$$, t.id('chA')), 'ao menos um proprietário');
 
+-- ── Vestimenta ─────────────────────────────────────────────────────────────
+select t.as_user('a0000000-0000-0000-0000-00000000000a');
+select t.eq('igreja nasce com os 10 padrões de vestimenta', (select count(*)::text from dress_codes where church_id = t.id('chA')), '10');
+select t.expect_fail(format($$select seed_dress_codes(%L)$$, t.id('chA')), 'permission denied');
+select t.as_root(); select seed_dress_codes(t.id('chA')); select t.as_user('a0000000-0000-0000-0000-00000000000a');
+select t.eq('semear de novo não duplica', (select count(*)::text from dress_codes where church_id = t.id('chA')), '10');
+select t.put('dVinho', (select id from dress_codes where church_id = t.id('chA') and name = 'Preto e Vinho'));
+select t.expect_fail(format($$insert into dress_codes (church_id, name, colors) values (%L, 'Ruim', '[{"hex":"vermelho"}]')$$, t.id('chA')), 'dress_colors_check');
+select t.expect_fail(format($$insert into dress_codes (church_id, name, colors) values (%L, 'Vazio', '[]')$$, t.id('chA')), 'dress_colors_check');
+select t.expect_fail(format($$insert into dress_codes (church_id, name, colors) values (%L, 'preto e vinho', '[{"hex":"#000000"}]')$$, t.id('chA')), 'dress_codes_name_key');
+select t.expect_fail(format($$insert into dress_weeks values (%L, current_date - extract(dow from current_date)::int + 1, %L)$$, t.id('chA'), t.id('dVinho')), 'dress_week_sunday');
+insert into dress_weeks values (t.id('chA'), current_date - extract(dow from current_date)::int, t.id('dVinho'));
+select t.expect_fail(format($$insert into dress_weeks values (%L, current_date - extract(dow from current_date)::int + 7, %L)$$, t.id('chB'), t.id('dVinho')), 'violates');
+-- Caio (líder) escala a semana, mas não altera os padrões; Duda (integrante) só lê
+select t.as_user('c0000000-0000-0000-0000-00000000000c');
+insert into dress_weeks values (t.id('chA'), current_date - extract(dow from current_date)::int + 7, t.id('dVinho'));
+select t.eq('líder escalou a semana', (select count(*)::text from dress_weeks), '2');
+update dress_codes set name = 'Hackeado' where id = t.id('dVinho');
+select t.eq('líder não altera padrão', (select name from dress_codes where id = t.id('dVinho')), 'Preto e Vinho');
+select t.as_user('d0000000-0000-0000-0000-00000000000d');
+select t.eq('integrante vê os padrões', (select count(*)::text from dress_codes), '10');
+select t.expect_fail(format($$insert into dress_weeks values (%L, current_date - extract(dow from current_date)::int + 14, %L)$$, t.id('chA'), t.id('dVinho')), 'row-level security');
+select t.as_user('a0000000-0000-0000-0000-00000000000a');
+update dress_codes set colors = '[{"hex":"#000000","name":"Preto"},{"hex":"#123456","name":"Novo"}]' where id = t.id('dVinho');
+
 -- ── Área pública: sem vazamento ────────────────────────────────────────────
 select t.as_anon();
 select t.eq('anon lê a área pública', (public_church('igreja-a') is not null)::text, 'true');
@@ -201,6 +226,7 @@ select t.eq('público sem telefone', (public_church('igreja-a')::text ~ '5565999
 select t.eq('público sem e-mail', (public_church('igreja-a')::text ~ '@a.com')::text, 'false');
 select t.eq('público sem status', (public_church('igreja-a')::text ~ 'confirmed|declined|decline_reason')::text, 'false');
 select t.eq('público tem o setlist', (public_church('igreja-a')::text ~ 'Grande é o Senhor')::text, 'true');
+select t.eq('público traz a vestimenta escalada com as cores atuais', (public_church('igreja-a')->'dress'->0->'colors'->1->>'hex'), '#123456');
 select t.expect_fail($$select * from members$$, 'permission denied');
 select t.expect_fail($$select * from events$$, 'permission denied');
 select t.expect_fail($$select refresh_states(gen_random_uuid())$$, 'permission denied');
@@ -211,14 +237,14 @@ do $$
 declare tb text; n bigint; leaks text := '';
 begin
   for tb in select unnest(array['churches','memberships','members','member_contacts','roles','member_roles','teams',
-      'team_members','events','assignments','unavailabilities','songs','setlist_items','invites','audit_log']) loop
+      'team_members','events','assignments','unavailabilities','songs','setlist_items','invites','audit_log','dress_codes','dress_weeks']) loop
     execute format('select count(*) from %I where %s = $1', tb,
                    case when tb = 'churches' then 'id::text' else 'church_id::text' end)
       into n using t.id('chA')::text;
     if n > 0 then leaks := leaks || tb || '(' || n || ') '; end if;
   end loop;
   if leaks <> '' then raise exception 'FALHA ISOLAMENTO: vazamento em %', leaks; end if;
-  raise notice 'ok  isolamento: B não lê nenhuma linha de A em 15 tabelas';
+  raise notice 'ok  isolamento: B não lê nenhuma linha de A em 17 tabelas';
 end $$;
 select t.eq('B vê só a própria igreja', (select count(*)::text from churches), '1');
 select t.eq('B não vê funções de A', (select count(*)::text from roles where church_id = t.id('chA')), '0');
